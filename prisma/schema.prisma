@@ -1,0 +1,119 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.1.x"]
+
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Vehicles {
+  id            Int       @id @default(autoincrement())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  completeName  String    @db.VarChar(150)
+  tagName       String    @db.VarChar(100)
+  carModel      String    @db.VarChar(50)
+  licensePlate  String    @db.VarChar(10)
+  color         String    @db.VarChar(20)
+  driverLicense String    @db.VarChar(30)
+  idNumber      String    @db.VarChar(30)
+  company       String    @db.VarChar(10)
+  section       String    @db.VarChar(50)
+}
+
+model Permissionario {
+  id            Int       @id @default(autoincrement())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  completeName  String    @db.VarChar(150)
+  idNumber      String    @db.VarChar(30)
+  CPF           String    @db.VarChar(11) @unique
+  local         String?   @db.VarChar(100)
+  carModel      String?   @db.VarChar(50)
+  licensePlate  String?   @db.VarChar(10)
+  color         String?   @db.VarChar(20)
+  imagePath     String?
+}
+
+
+model Entry {
+  id            Int       @id @default(autoincrement())
+  type          String    @db.VarChar(10)
+  isVisitor     Boolean
+  isPermissionario Boolean? @default(false)
+  isScheduled   Boolean   @default(false)
+  scheduledDate DateTime? 
+  name          String    @db.VarChar(250)
+  idNumber      String    @db.VarChar(30)
+  licensePlate  String    @db.VarChar(10)
+  carModel      String    @db.VarChar(50)
+  time          DateTime  @default(now())
+  target        String?   @db.VarChar(200)
+  contactPerson String?   @db.VarChar(100)
+  color         String    @db.VarChar(20)
+  exited        Boolean?
+  phoneNumber   String?
+  imagePath     String?
+}
+
+model Viatura {
+  id              Int       @id @default(autoincrement())
+  model           String    @db.VarChar(250)
+  licensePlate    String    @db.VarChar(20)
+  complements     String?
+  missions        Mission[]
+}
+
+model Driver {
+  id              Int       @id @default(autoincrement())
+  name            String    @db.VarChar(250)
+  driverLicense   String    @db.VarChar(30)
+  expirationDate  DateTime
+  missions        Mission[]
+  courses         String?
+  category        String?
+}
+
+model Mission {
+  id              Int       @id @default(autoincrement())
+  viatura         Viatura   @relation(fields: [viaturaId], references: [id])
+  viaturaId       Int
+  driver          Driver    @relation(fields: [driverId], references: [id])
+  driverId        Int
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  isActive        Boolean   @default(true)
+  isAuthorized    Boolean   @default(false)
+  dateMission     DateTime 
+  complements     String    @db.VarChar(500)
+  initialOdometer String?   
+  finalOdometer   String?
+  chefeVtr        String?
+  destination     String?
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  password        String
+  role            String
+  login           String  @unique
+}
+
+model PessoaNaoAutorizada {
+  id          Int      @id @default(autoincrement())
+  nome        String
+  imagePath   String?
+  identidade  String?
+  CPF         String   @unique
+  observacao  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("pessoas_nao_autorizadas")
+}

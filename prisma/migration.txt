@@ -1,0 +1,20 @@
+-- CreatePermissionarioAndUpdateEntry
+-- Criar a tabela Permissionario
+CREATE TABLE "Permissionario" (
+  "id" SERIAL PRIMARY KEY,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL,
+  "completeName" VARCHAR(150) NOT NULL,
+  "idNumber" VARCHAR(30) NOT NULL,
+  "CPF" VARCHAR(11) NOT NULL UNIQUE
+);
+
+-- Adicionar campo isPermissionario à tabela Entry
+ALTER TABLE "Entry" ADD COLUMN "isPermissionario" BOOLEAN DEFAULT false;
+
+-- Criar índice para otimizar consultas por CPF
+CREATE INDEX "Permissionario_CPF_idx" ON "Permissionario"("CPF");
+
+
+npx prisma migrate dev --name add_permissionario_model
+npx prisma migrate dev --name add_permissionario_model
