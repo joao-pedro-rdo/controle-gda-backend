@@ -1,0 +1,4 @@
+DATABASE_URL="postgresql://roberti:roberti@localhost:5432/entrada_saida_quartel?schema=public"
+HOST="localhost"
+PORT=5000
+ENDPOINT="localhost"

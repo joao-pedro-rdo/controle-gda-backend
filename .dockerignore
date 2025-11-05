@@ -1,0 +1,21 @@
+# Ignora dependências locais
+node_modules/
+# Ignora arquivos de log
+*.log
+
+# Ignora configurações de IDE
+.vscode/
+.idea/
+
+# Ignora artefatos de build
+dist/
+build/
+
+# Ignora arquivos sensíveis
+.env
+
+.gitignore
+IMAGE_ENCRYPTION_KEY.txt
+.dockerignore
+COOKIE_SECRET.txt
+JWT_SECRET.txt
