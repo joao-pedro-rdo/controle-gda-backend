@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Upload de Imagens do Sistema</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section h2 {
+            color: #4CAF50;
+            margin-top: 0;
+        }
+        input[type="text"], input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button.danger {
+            background: #f44336;
+        }
+        button.danger:hover {
+            background: #da190b;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .images-display {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .image-box {
+            flex: 1;
+            text-align: center;
+        }
+        .image-box img {
+            max-width: 100%;
+            max-height: 200px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖼️ Teste - Endpoints de Imagens do Sistema</h1>
+        
+        <!-- Token -->
+        <div class="section">
+            <h2>🔐 Autenticação</h2>
+            <label for="token">Token JWT (necessário para upload/reset):</label>
+            <input type="text" id="token" placeholder="Cole seu token JWT aqui">
+            <small>Obtenha o token fazendo login na aplicação</small>
+        </div>
+
+        <!-- Upload -->
+        <div class="section">
+            <h2>📤 Upload de Imagem</h2>
+            <div>
+                <label>Tipo de Imagem:</label><br>
+                <input type="radio" id="typeLogo" name="imageType" value="logo" checked>
+                <label for="typeLogo">Logo</label>
+                <input type="radio" id="typeBackground" name="imageType" value="background">
+                <label for="typeBackground">Background</label>
+            </div>
+            <input type="file" id="fileInput" accept="image/*">
+            <button onclick="uploadImage()">Fazer Upload</button>
+            <div id="uploadResult" class="result"></div>
+        </div>
+
+        <!-- Listar Imagens -->
+        <div class="section">
+            <h2>📋 Imagens Atuais</h2>
+            <button onclick="listImages()">Carregar Imagens Atuais</button>
+            <div id="listResult" class="result"></div>
+            <div id="imagesDisplay" class="images-display"></div>
+        </div>
+
+        <!-- Reset -->
+        <div class="section">
+            <h2>🔄 Resetar Imagem</h2>
+            <button class="danger" onclick="resetImage('logo')">Resetar Logo</button>
+            <button class="danger" onclick="resetImage('background')">Resetar Background</button>
+            <div id="resetResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+
+        function getToken() {
+            const token = document.getElementById('token').value.trim();
+            if (!token) {
+                alert('Por favor, insira o token JWT');
+                return null;
+            }
+            return token;
+        }
+
+        function showResult(elementId, message, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `result ${isSuccess ? 'success' : 'error'}`;
+            element.style.display = 'block';
+            
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
+        }
+
+        async function uploadImage() {
+            const token = getToken();
+            if (!token) return;
+
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Por favor, selecione um arquivo');
+                return;
+            }
+
+            const imageType = document.querySelector('input[name="imageType"]:checked').value;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('imageType', imageType);
+
+            try {
+                const response = await fetch(`${API_URL}/system-images/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult('uploadResult', `✅ ${result.message}\nArquivo: ${result.fileName}`, true);
+                    fileInput.value = '';
+                    // Recarregar imagens
+                    setTimeout(() => listImages(), 500);
+                } else {
+                    showResult('uploadResult', `❌ Erro: ${result.error}`, false);
+                }
+            } catch (error) {
+                showResult('uploadResult', `❌ Erro: ${error.message}`, false);
+            }
+        }
+
+        async function listImages() {
+            const token = getToken();
+            if (!token) return;
+
+            try {
+                const response = await fetch(`${API_URL}/system-images/current`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const result = await response.json();
+                
+                let message = 'Imagens carregadas:\n';
+                message += `Logo: ${result.logo || 'Não definido'}\n`;
+                message += `Background: ${result.background || 'Não definido'}`;
+                
+                showResult('listResult', message, true);
+
+                // Exibir imagens
+                const display = document.getElementById('imagesDisplay');
+                display.innerHTML = '';
+
+                if (result.logo) {
+                    display.innerHTML += `
+                        <div class="image-box">
+                            <h3>Logo</h3>
+                            <img src="${API_URL}${result.logo}?t=${Date.now()}" alt="Logo">
+                        </div>
+                    `;
+                }
+
+                if (result.background) {
+                    display.innerHTML += `
+                        <div class="image-box">
+                            <h3>Background</h3>
+                            <img src="${API_URL}${result.background}?t=${Date.now()}" alt="Background">
+                        </div>
+                    `;
+                }
+
+                if (!result.logo && !result.background) {
+                    display.innerHTML = '<p>Nenhuma imagem personalizada configurada</p>';
+                }
+
+            } catch (error) {
+                showResult('listResult', `❌ Erro: ${error.message}`, false);
+            }
+        }
+
+        async function resetImage(type) {
+            const token = getToken();
+            if (!token) return;
+
+            if (!confirm(`Tem certeza que deseja resetar a imagem ${type}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/system-images/${type}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult('resetResult', `✅ ${result.message}`, true);
+                    // Recarregar imagens
+                    setTimeout(() => listImages(), 500);
+                } else {
+                    showResult('resetResult', `❌ Erro: ${result.error}`, false);
+                }
+            } catch (error) {
+                showResult('resetResult', `❌ Erro: ${error.message}`, false);
+            }
+        }
+    </script>
+</body>
+</html>

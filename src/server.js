@@ -51,6 +51,18 @@ app.register(helmet);
 //   }
 // });
 
+// Servir imagens públicas do sistema (logo e background)
+app.register(fastifyStatic, {
+  root: path.join(__dirname, "../public"),
+  prefix: "/public/",
+  decorateReply: false,
+  setHeaders: (res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+  },
+});
+
 await app.register(fastifyCookie, {
   secret: process.env.COOKIE_SECRET || "controle-gda-cookie-secret-2025",
   parseOptions: {

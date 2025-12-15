@@ -129,11 +129,14 @@ export const getPermissionarioImage = async (request, reply) => {
 // ========== FUNÇÕES PARA GERENCIAMENTO DE IMAGENS DO SISTEMA ==========
 
 /**
+ * Upload de imagem do sistema (logo ou background)
+ */
+/**
  * Upload de logo do sistema
  */
 export const uploadLogo = async (request, reply) => {
   try {
-    console.log("📥 Upload de LOGO iniciado...");
+    console.log("📥 Iniciando upload de LOGO...");
 
     const data = await request.file();
 
@@ -157,7 +160,7 @@ export const uploadLogo = async (request, reply) => {
     if (!allowedExts.includes(ext)) {
       return reply.status(400).send({
         success: false,
-        error: "Extensão não permitida",
+        error: "Extensão não permitida. Use: jpg, jpeg, png, gif ou webp",
       });
     }
 
@@ -174,16 +177,16 @@ export const uploadLogo = async (request, reply) => {
     existingFiles.forEach((file) => {
       try {
         fs.unlinkSync(path.join(uploadDir, file));
-        console.log("🗑️  Logo antiga removida:", file);
+        console.log("🗑️ Logo antiga removida:", file);
       } catch (err) {
-        console.error("❌ Erro ao deletar logo:", err);
+        console.error("❌ Erro ao deletar logo antiga:", err);
       }
     });
 
     const buffer = await data.toBuffer();
     fs.writeFileSync(filePath, buffer);
 
-    console.log("✅ Logo salva:", fileName);
+    console.log("✅ Logo salva com sucesso:", fileName);
 
     return reply.send({
       success: true,
@@ -205,7 +208,7 @@ export const uploadLogo = async (request, reply) => {
  */
 export const uploadBackground = async (request, reply) => {
   try {
-    console.log("📥 Upload de BACKGROUND iniciado...");
+    console.log("📥 Iniciando upload de BACKGROUND...");
 
     const data = await request.file();
 
@@ -229,42 +232,59 @@ export const uploadBackground = async (request, reply) => {
     if (!allowedExts.includes(ext)) {
       return reply.status(400).send({
         success: false,
-        error: "Extensão não permitida",
+        error: "Extensão de arquivo não permitida. Use: jpg, jpeg, png, gif ou webp",
       });
     }
 
+    // Definir diretórios e nome do arquivo
     const uploadDir = path.join(__dirname, "../../public/img");
-    const fileName = `bg-cover${ext}`;
+    
+    // Usar nome específico para background (bg-cover) e logo (logo)
+    const fileName = imageType === "background" ? `bg-cover${ext}` : `logo${ext}`;
     const filePath = path.join(uploadDir, fileName);
 
+    // Garantir que o diretório existe
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
+      console.log("📁 Diretório criado:", uploadDir);
     }
 
-    // Deletar backgrounds antigos
-    const existingFiles = fs.readdirSync(uploadDir).filter((f) => f.startsWith("bg-cover"));
+    // Deletar arquivos antigos do mesmo tipo
+    const prefix = imageType === "background" ? "bg-cover" : "logo";
+    const existingFiles = fs
+      .readdirSync(uploadDir)
+      .filter((f) => f.startsWith(prefix));
+
+    console.log(`🔍 Procurando arquivos com prefixo "${prefix}":`, existingFiles);
+
     existingFiles.forEach((file) => {
       try {
         fs.unlinkSync(path.join(uploadDir, file));
-        console.log("🗑️ Background antigo removido:", file);
+        console.log("🗑️ Arquivo antigo removido:", file);
       } catch (err) {
-        console.error("❌ Erro ao deletar background:", err);
+        console.error("❌ Erro ao deletar arquivo antigo:", err);
       }
     });
 
-    const buffer = await data.toBuffer();
+    // Salvar novo arquivo - ler o stream do arquivo
+    const chunks = [];
+    for await (const chunk of fileData.file) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
     fs.writeFileSync(filePath, buffer);
 
-    console.log("✅ Background salvo:", fileName);
+    console.log("✅ Imagem salva com sucesso:", fileName);
+    console.log("📍 Caminho completo:", filePath);
 
     return reply.send({
       success: true,
       fileName: fileName,
       imagePath: `/system-images/${fileName}`,
-      message: "Background atualizado com sucesso",
+      message: `Imagem ${imageType} atualizada com sucesso`,
     });
   } catch (error) {
-    console.error("❌ Erro no upload do background:", error);
+    console.error("❌ Erro no upload:", error);
     return reply.status(500).send({
       success: false,
       error: "Erro ao processar upload: " + error.message,
@@ -279,6 +299,7 @@ export const getCurrentSystemImages = async (request, reply) => {
   try {
     const imgDir = path.join(__dirname, "../../public/img");
 
+    // Se o diretório não existe, retornar valores padrão
     if (!fs.existsSync(imgDir)) {
       return reply.send({
         logo: null,
@@ -314,15 +335,17 @@ export const resetSystemImage = async (request, reply) => {
 
     console.log("🔄 Resetando imagem:", type);
 
+    // Validar tipo
     if (!["logo", "background"].includes(type)) {
       return reply.status(400).send({
         success: false,
-        error: 'Tipo inválido. Use "logo" ou "background"',
+        error: 'Tipo de imagem inválido. Use "logo" ou "background"',
       });
     }
 
     const imgDir = path.join(__dirname, "../../public/img");
 
+    // Se o diretório não existe, não há o que fazer
     if (!fs.existsSync(imgDir)) {
       return reply.send({
         success: true,
@@ -330,6 +353,7 @@ export const resetSystemImage = async (request, reply) => {
       });
     }
 
+    // Buscar e deletar arquivos do tipo especificado
     const prefix = type === "background" ? "bg-cover" : "logo";
     const files = fs.readdirSync(imgDir).filter((f) => f.startsWith(prefix));
 
@@ -365,6 +389,7 @@ export const getSystemImage = async (request, reply) => {
   try {
     const { filename } = request.params;
 
+    // Validar nome do arquivo para evitar path traversal
     if (filename.includes("..") || filename.includes("/")) {
       return reply.status(400).send({ error: "Nome de arquivo inválido" });
     }
@@ -378,6 +403,7 @@ export const getSystemImage = async (request, reply) => {
       return reply.status(404).send({ error: "Imagem não encontrada" });
     }
 
+    // Detectar tipo de conteúdo baseado na extensão
     const ext = path.extname(filename).toLowerCase();
     let contentType = "image/jpeg";
 
@@ -401,7 +427,7 @@ export const getSystemImage = async (request, reply) => {
 
     reply.headers({
       "Content-Type": contentType,
-      "Cache-Control": "public, max-age=86400",
+      "Cache-Control": "public, max-age=86400", // Cache por 24 horas
       "X-Content-Type-Options": "nosniff",
     });
 

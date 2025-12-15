@@ -20,6 +20,10 @@ RUN npx prisma generate
 RUN mkdir -p /app/uploads/visitors /app/uploads/permissionarios /app/uploads/temp
 RUN chmod -R 755 /app/uploads
 
+# Criar diretório para imagens do sistema (logo e background)
+RUN mkdir -p /app/public/img
+RUN chmod -R 755 /app/public
+
 # Expor a porta
 EXPOSE 5000
 
