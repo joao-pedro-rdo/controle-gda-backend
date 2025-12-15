@@ -1,0 +1,14 @@
+# Diretório de Imagens do Sistema
+
+Este diretório armazena as imagens customizadas do sistema:
+
+- **logo**: Logo da aplicação (exibido no cabeçalho e tela de login)
+- **background**: Imagem de fundo da tela de login
+
+As imagens são gerenciadas através dos endpoints da API:
+
+- Upload: `POST /system-images/upload`
+- Listar: `GET /system-images/current`
+- Resetar: `DELETE /system-images/:type`
+
+Consulte `ENDPOINTS_IMAGENS_SISTEMA.md` para documentação completa.
