@@ -8,6 +8,14 @@ import {
   getEncryptedPath,
   decryptImage,
 } from "../helpers/imageEncryption.js";
+// 📊 Importar métricas do Prometheus
+import {
+  incrementEntryCounter,
+  incrementExitCounter,
+  incrementScheduledEntry,
+  recordStayDuration,
+  incrementImageUpload,
+} from "../helpers/prometheus.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -270,6 +278,19 @@ export const createEntry = async (request, reply) => {
       imagePath: entry.imagePath,
     });
 
+    // 📊 PROMETHEUS: Registrar métrica de entrada
+    const entryType = formData.isPermissionario === "true"
+      ? "permissionario"
+      : formData.isMilitar === "true"
+      ? "militar"
+      : "visitor";
+    incrementEntryCounter(entryType, isScheduled, "success");
+
+    // Se houver imagem, registrar upload
+    if (imageFile) {
+      incrementImageUpload("visitor", "success", imageFile.file?.bytesRead || 0);
+    }
+
     reply.status(201).send({
       message: "Entrada registrada com sucesso",
       entry: entry,
@@ -520,6 +541,9 @@ export const confirmScheduledEntry = async (request, reply) => {
       imagePath: updatedEntry.imagePath,
     });
 
+    // 📊 PROMETHEUS: Registrar confirmação de agendamento
+    incrementScheduledEntry("confirmed");
+
     reply.status(200).send({
       message: "Agendamento confirmado com sucesso",
       entry: updatedEntry,
@@ -640,6 +664,27 @@ export const createExit = async (request, reply) => {
       imagePath: exitEntry.imagePath,
     });
 
+    // 📊 PROMETHEUS: Registrar métrica de saída
+    const exitType = isPermissionario === true || isPermissionario === "true"
+      ? "permissionario"
+      : "visitor";
+    incrementExitCounter(exitType);
+
+    // Calcular tempo de permanência (se possível)
+    if (entryId) {
+      try {
+        const originalEntry = await prisma.entry.findUnique({
+          where: { id: parseInt(entryId) },
+        });
+        if (originalEntry && originalEntry.time) {
+          const stayTime = (new Date() - new Date(originalEntry.time)) / (1000 * 60 * 60); // em horas
+          recordStayDuration(exitType, stayTime);
+        }
+      } catch (err) {
+        console.error("❌ Erro ao calcular tempo de permanência:", err.message);
+      }
+    }
+
     reply.status(201).send({
       message: "Saída registrada com sucesso",
       exit: exitEntry,
@@ -743,6 +788,9 @@ export const createScheduledEntry = async (request, reply) => {
       name: agendamento.name,
       scheduledDate: agendamento.scheduledDate,
     });
+
+    // 📊 PROMETHEUS: Registrar criação de agendamento
+    incrementScheduledEntry("created");
 
     reply.status(201).send({
       message: "Agendamento criado com sucesso",
