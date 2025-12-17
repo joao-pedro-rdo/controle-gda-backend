@@ -9,11 +9,13 @@
 - **Solução:** Use as **Gauges** (calculadas do banco) para dados em tempo real
 
 **Métricas que NÃO resetam (calculadas do banco a cada 60s):**
+
 - ✅ `vehicles_registered_total` - Total no banco
 - ✅ `permissionarios_total` - Total no banco
 - ✅ `people_inside_om_total` - **MELHOR MÉTRICA** para saber quantas pessoas estão dentro
 
 **Métricas que resetam (counters incrementais):**
+
 - ⚠️ `entries_total` - Conta apenas desde o último restart
 - ⚠️ `exits_total` - Conta apenas desde o último restart
 
@@ -119,9 +121,10 @@ sum(increase(entries_total{type="militar", scheduled="false"}[19h]))
 ```
 
 **Tipo de painel:** Stat  
-**⚠️ IMPORTANTE:** O campo `isMilitar` **NÃO EXISTE** no schema do Prisma atual. 
+**⚠️ IMPORTANTE:** O campo `isMilitar` **NÃO EXISTE** no schema do Prisma atual.
 
 Esta métrica **sempre retornará 0** até você:
+
 1. Adicionar o campo ao schema:
    ```prisma
    model Entry {
@@ -409,6 +412,7 @@ people_inside_om_total{type="militar"} 0
 ```
 
 **Interpretação:**
+
 - 13 visitantes entraram e ainda não saíram
 - 27 permissionários entraram e ainda não saíram
 - 0 militares (campo `isMilitar` não existe ou não usado)
@@ -422,6 +426,7 @@ exits_total{type="permissionario"} 1
 ```
 
 **Interpretação:**
+
 - 1 nova entrada de visitante foi registrada desde o restart
 - 8 visitantes saíram desde o restart
 - 1 permissionário saiu desde o restart
@@ -442,6 +447,7 @@ Média: 40 horas por visitante
 ```
 
 **Atenção:** Visitantes estão ficando em média **40 horas** dentro! Pode ser:
+
 - Dados antigos de entradas sem saída
 - Sistema usado 24/7 com permanências longas
 - Necessidade de limpeza de dados antigos
@@ -451,6 +457,7 @@ Média: 40 horas por visitante
 ## 🎯 Dashboard Recomendado com Base nos Dados Reais
 
 ### Panel 1: Cadastros (Row 1)
+
 ```promql
 # Veículos
 vehicles_registered_total
@@ -463,6 +470,7 @@ unauthorized_persons_total
 ```
 
 ### Panel 2: Pessoas Dentro da OM AGORA (Row 2) - MELHOR MÉTRICA
+
 ```promql
 # Total dentro
 sum(people_inside_om_total)
@@ -472,6 +480,7 @@ people_inside_om_total
 ```
 
 ### Panel 3: Movimento desde o último restart (Row 3)
+
 ```promql
 # Total de entradas
 sum(entries_total)
@@ -481,6 +490,7 @@ sum(exits_total)
 ```
 
 ### Panel 4: Taxa de Entrada/Saída (Row 4)
+
 ```promql
 # Entradas por minuto
 sum(rate(entries_total[5m])) * 60
