@@ -1,6 +1,13 @@
 import { PrismaClient } from "@prisma/client";
 import { faker } from "@faker-js/faker/locale/pt_BR";
 import { genSaltSync, hash } from "bcrypt";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { encryptImage } from "../src/helpers/imageEncryption.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const prisma = new PrismaClient();
 
@@ -18,67 +25,24 @@ const hashPassword = (password) => {
 const generateLicensePlate = () => {
   const oldFormat = Math.random() > 0.5;
   if (oldFormat) {
-    // Formato antigo: ABC-1234
     return `${faker.string.alpha({ length: 3, casing: 'upper' })}-${faker.string.numeric(4)}`;
   } else {
-    // Formato Mercosul: ABC1D23
     return `${faker.string.alpha({ length: 3, casing: 'upper' })}${faker.string.numeric(1)}${faker.string.alpha({ length: 1, casing: 'upper' })}${faker.string.numeric(2)}`;
   }
 };
 
-// Gerar CPF válido (simplificado)
-const generateCPF = () => {
-  return faker.string.numeric(11);
-};
+const generateCPF = () => faker.string.numeric(11);
+const generateRG = () => faker.string.numeric(9);
+const generateCNH = () => faker.string.numeric(11);
 
-// Gerar RG
-const generateRG = () => {
-  return faker.string.numeric(9);
-};
-
-// Gerar CNH
-const generateCNH = () => {
-  return faker.string.numeric(11);
-};
-
-// Cores de veículos comuns
-const carColors = [
-  'Branco', 'Preto', 'Prata', 'Cinza', 'Vermelho', 
-  'Azul', 'Verde', 'Amarelo', 'Marrom', 'Bege'
-];
-
-// Modelos de carros comuns
-const carModels = [
-  'Gol', 'Civic', 'Corolla', 'HB20', 'Onix',
-  'Uno', 'Palio', 'Fox', 'Kicks', 'Creta',
-  'Compass', 'Renegade', 'Argo', 'Polo', 'Voyage',
-  'Hilux', 'Ranger', 'Frontier', 'S10', 'Amarok'
-];
-
-// Companhias militares
+const carColors = ['Branco', 'Preto', 'Prata', 'Cinza', 'Vermelho', 'Azul', 'Verde', 'Amarelo', 'Marrom', 'Bege'];
+const carModels = ['Gol', 'Civic', 'Corolla', 'HB20', 'Onix', 'Uno', 'Palio', 'Fox', 'Kicks', 'Creta', 'Compass', 'Renegade', 'Argo', 'Polo', 'Voyage', 'Hilux', 'Ranger', 'Frontier', 'S10', 'Amarok'];
 const companies = ['1ª Cia', '2ª Cia', '3ª Cia', '4ª Cia', 'EMI', 'Cmdo'];
+const sections = ['Comando', 'S1', 'S2', 'S3', 'S4', '1º Pelotão', '2º Pelotão', '3º Pelotão', 'Administração', 'Inteligência', 'Operações'];
+const locations = ['Cantina', 'Manutenção', 'Limpeza', 'Segurança', 'Jardinagem', 'Refeitório', 'Almoxarifado', 'Portaria'];
+const visitDestinations = ['Comando do Batalhão', 'S2 - Inteligência', 'S1 - Pessoal', 'S3 - Operações', 'S4 - Logística', 'Almoxarifado', 'Enfermaria', 'Secretaria', 'Refeitório', 'Arsenal'];
 
-// Seções militares
-const sections = [
-  'Comando', 'S1', 'S2', 'S3', 'S4', 
-  '1º Pelotão', '2º Pelotão', '3º Pelotão',
-  'Administração', 'Inteligência', 'Operações'
-];
-
-// Locais para permissionários
-const locations = [
-  'Cantina', 'Manutenção', 'Limpeza', 'Segurança',
-  'Jardinagem', 'Refeitório', 'Almoxarifado', 'Portaria'
-];
-
-// Destinos de visitas
-const visitDestinations = [
-  'Comando do Batalhão', 'S2 - Inteligência', 'S1 - Pessoal',
-  'S3 - Operações', 'S4 - Logística', 'Almoxarifado',
-  'Enfermaria', 'Secretaria', 'Refeitório', 'Arsenal'
-];
-
-console.log('🌱 Iniciando seed do banco de dados...\n');
+console.log('🌱 Iniciando seed AVANÇADO do banco de dados...\n');
 
 async function main() {
   // ============================================================================
@@ -101,13 +65,13 @@ async function main() {
       },
     });
     users.push(user);
-    console.log(`   ✓ Usuário ${role} criado (login: ${role.toLowerCase()}, senha: teste123)`);
+    console.log(`   ✓ Usuário ${role} criado`);
   }
 
   // ============================================================================
-  // 2. CRIAR VEÍCULOS
+  // 2. CRIAR VEÍCULOS MILITARES
   // ============================================================================
-  console.log('\n🚗 Criando veículos...');
+  console.log('\n🚗 Criando veículos militares...');
   
   const vehicles = [];
   for (let i = 0; i < 50; i++) {
@@ -145,12 +109,11 @@ async function main() {
           carModel: faker.helpers.arrayElement(carModels), // SEMPRE tem carro
           licensePlate: generateLicensePlate(), // SEMPRE tem placa
           color: faker.helpers.arrayElement(carColors), // SEMPRE tem cor
-          imagePath: null, // Pode adicionar depois manualmente
+          imagePath: null,
         },
       });
       permissionarios.push(permissionario);
     } catch (error) {
-      // Ignora erro de CPF duplicado e tenta novamente
       i--;
     }
   }
@@ -266,7 +229,42 @@ async function main() {
   console.log(`   ✓ ${missions.length} missões criadas`);
 
   // ============================================================================
-  // 8. CRIAR ENTRADAS (Visitantes + Permissionários + Militares)
+  // 8. PREPARAR IMAGEM PADRÃO PARA VISITANTES
+  // ============================================================================
+  console.log('\n📷 Preparando imagem padrão para visitantes...');
+  
+  let defaultImagePath = null;
+  try {
+    const personImageSource = path.join(__dirname, 'person.png');
+    const visitorsDir = path.join(__dirname, '../uploads/visitors');
+    
+    // Garantir que o diretório existe
+    if (!fs.existsSync(visitorsDir)) {
+      fs.mkdirSync(visitorsDir, { recursive: true });
+    }
+    
+    if (fs.existsSync(personImageSource)) {
+      const defaultFileName = 'default_person.jpg';
+      const defaultFilePath = path.join(visitorsDir, defaultFileName);
+      
+      // Copiar imagem padrão
+      fs.copyFileSync(personImageSource, defaultFilePath);
+      
+      // Criptografar imagem
+      encryptImage(defaultFilePath);
+      defaultImagePath = `/uploads/visitors/${defaultFileName}.encrypted`;
+      
+      console.log(`   ✓ Imagem padrão preparada: ${defaultImagePath}`);
+    } else {
+      console.log('   ⚠️ Arquivo person.png não encontrado, entradas sem imagem');
+    }
+  } catch (error) {
+    console.error('   ❌ Erro ao preparar imagem padrão:', error.message);
+    defaultImagePath = null;
+  }
+
+  // ============================================================================
+  // 9. CRIAR ENTRADAS (Usando lógica similar ao controller)
   // ============================================================================
   console.log('\n📥 Criando entradas (últimos 3 dias)...');
   
@@ -275,19 +273,15 @@ async function main() {
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
   const now = new Date();
   
-  // 8.1 - Entradas de VISITANTES
+  // 9.1 - Entradas de VISITANTES
   console.log('   📋 Criando entradas de visitantes...');
   for (let i = 0; i < 150; i++) {
     const isScheduled = Math.random() > 0.8;
-    const hasExited = Math.random() > 0.4;
-    const entryTime = faker.date.between({ 
-      from: threeDaysAgo, 
-      to: now 
-    });
+    const entryTime = faker.date.between({ from: threeDaysAgo, to: now });
     
     const entry = await prisma.entry.create({
       data: {
-        type: 'civil',
+        type: 'Entrada',
         isVisitor: true,
         isPermissionario: false,
         isScheduled: isScheduled,
@@ -300,31 +294,26 @@ async function main() {
         target: faker.helpers.arrayElement(visitDestinations),
         contactPerson: faker.person.fullName(),
         color: faker.helpers.arrayElement(carColors),
-        exited: hasExited,
+        exited: false, // Todos começam como não saídos
         phoneNumber: faker.phone.number('(##) #####-####'),
-        imagePath: null,
+        imagePath: defaultImagePath, // Usar imagem padrão
       },
     });
     entries.push(entry);
   }
   console.log(`      ✓ ${entries.filter(e => e.isVisitor).length} visitantes criados`);
   
-  // 8.2 - Entradas de PERMISSIONÁRIOS (Múltiplas entradas por permissionário)
+  // 9.2 - Entradas de PERMISSIONÁRIOS
   console.log('   📋 Criando entradas de permissionários...');
   for (const permissionario of permissionarios) {
-    // Cada permissionário terá entre 3 a 8 entradas nos últimos 3 dias
     const numEntries = faker.number.int({ min: 3, max: 8 });
     
     for (let i = 0; i < numEntries; i++) {
-      const hasExited = Math.random() > 0.2; // 80% já saíram
-      const entryTime = faker.date.between({ 
-        from: threeDaysAgo, 
-        to: now 
-      });
+      const entryTime = faker.date.between({ from: threeDaysAgo, to: now });
       
       const entry = await prisma.entry.create({
         data: {
-          type: 'civil',
+          type: 'Entrada',
           isVisitor: false,
           isPermissionario: true,
           isScheduled: false,
@@ -336,7 +325,7 @@ async function main() {
           target: permissionario.local,
           contactPerson: null,
           color: permissionario.color, // Agora sempre tem cor
-          exited: hasExited,
+          exited: false, // Todos começam como não saídos
           phoneNumber: faker.phone.number('(##) #####-####'),
           imagePath: permissionario.imagePath,
         },
@@ -346,18 +335,13 @@ async function main() {
   }
   console.log(`      ✓ ${entries.filter(e => e.isPermissionario).length} entradas de permissionários criadas`);
   
-  // 8.3 - Entradas de MILITARES (Múltiplas entradas por veículo)
+  // 9.3 - Entradas de MILITARES
   console.log('   📋 Criando entradas de militares...');
   for (const vehicle of vehicles) {
-    // Cada veículo terá entre 2 a 6 entradas nos últimos 3 dias
     const numEntries = faker.number.int({ min: 2, max: 6 });
     
     for (let i = 0; i < numEntries; i++) {
-      const hasExited = Math.random() > 0.3; // 70% já saíram
-      const entryTime = faker.date.between({ 
-        from: threeDaysAgo, 
-        to: now 
-      });
+      const entryTime = faker.date.between({ from: threeDaysAgo, to: now });
       
       const entry = await prisma.entry.create({
         data: {
@@ -373,7 +357,7 @@ async function main() {
           target: faker.helpers.arrayElement(sections),
           contactPerson: null,
           color: vehicle.color,
-          exited: hasExited,
+          exited: false, // Todos começam como não saídos
           phoneNumber: null,
           imagePath: null,
         },
@@ -381,29 +365,86 @@ async function main() {
       entries.push(entry);
     }
   }
-  console.log(`      ✓ ${entries.filter(e => e.type === 'militar').length} entradas de militares criadas`)
+  console.log(`      ✓ ${entries.filter(e => e.type === 'militar').length} entradas de militares criadas`);
+
+  // ============================================================================
+  // 10. CRIAR SAÍDAS (80% das entradas já saíram)
+  // ============================================================================
+  console.log('\n🚪 Criando saídas...');
   
-  console.log(`   ✓ ${entries.length} entradas criadas (${entries.filter(e => e.isVisitor).length} visitantes, ${entries.filter(e => e.isPermissionario).length} permissionários, ${entries.filter(e => e.type === 'militar').length} militares)`);
+  const exits = [];
+  const entriesToExit = entries.filter(() => Math.random() > 0.2); // 80% vão ter saída
+  
+  for (const originalEntry of entriesToExit) {
+    // Criar tempo de saída entre a entrada e agora
+    const exitTime = faker.date.between({ 
+      from: originalEntry.time, 
+      to: now 
+    });
+    
+    // Criar registro de saída
+    const exitEntry = await prisma.entry.create({
+      data: {
+        type: 'Saída',
+        isVisitor: originalEntry.isVisitor,
+        isPermissionario: originalEntry.isPermissionario,
+        isScheduled: false,
+        name: originalEntry.name,
+        idNumber: originalEntry.idNumber,
+        licensePlate: originalEntry.licensePlate,
+        carModel: originalEntry.carModel,
+        time: exitTime,
+        target: originalEntry.target,
+        contactPerson: originalEntry.contactPerson,
+        color: originalEntry.color,
+        phoneNumber: originalEntry.phoneNumber,
+        imagePath: originalEntry.imagePath, // Mesma imagem da entrada
+        exited: false, // Saída não tem flag exited
+      },
+    });
+    
+    // Marcar entrada original como exited
+    await prisma.entry.update({
+      where: { id: originalEntry.id },
+      data: { exited: true },
+    });
+    
+    exits.push(exitEntry);
+  }
+  
+  console.log(`   ✓ ${exits.length} saídas criadas`);
 
   // ============================================================================
   // RESUMO
   // ============================================================================
-  console.log('\n✅ Seed concluído com sucesso!\n');
+  console.log('\n✅ Seed avançado concluído com sucesso!\n');
   console.log('📊 Resumo:');
   console.log(`   • ${users.length} usuários`);
-  console.log(`   • ${vehicles.length} veículos`);
+  console.log(`   • ${vehicles.length} veículos militares`);
   console.log(`   • ${permissionarios.length} permissionários`);
   console.log(`   • ${pessoasNaoAutorizadas.length} pessoas não autorizadas`);
   console.log(`   • ${drivers.length} motoristas`);
   console.log(`   • ${viaturas.length} viaturas`);
   console.log(`   • ${missions.length} missões`);
-  console.log(`   • ${entries.length} entradas`);
-  console.log(`   • ${entries.filter(e => !e.exited).length} pessoas dentro do quartel agora`);
+  console.log(`   • ${entries.length} entradas registradas`);
+  console.log(`   • ${exits.length} saídas registradas`);
+  console.log(`   • ${entries.filter(e => !e.exited).length} pessoas ainda dentro da OM`);
+  
+  console.log('\n📈 Estatísticas por tipo:');
+  console.log(`   • Visitantes: ${entries.filter(e => e.isVisitor).length} entradas`);
+  console.log(`   • Permissionários: ${entries.filter(e => e.isPermissionario).length} entradas`);
+  console.log(`   • Militares: ${entries.filter(e => e.type === 'militar').length} entradas`);
   
   console.log('\n🔐 Credenciais de login:');
   console.log('   • login: s2       | senha: teste123 | role: S2');
   console.log('   • login: guarda   | senha: teste123 | role: Guarda');
   console.log('   • login: scmt     | senha: teste123 | role: Scmt');
+  
+  console.log('\n💡 Dica: Agora você pode testar:');
+  console.log('   • Buscar permissionários por CPF');
+  console.log('   • Registrar novas entradas de permissionários existentes');
+  console.log('   • Registrar saídas das pessoas que ainda estão dentro');
+  console.log('   • Gerar relatórios dos últimos 3 dias');
 }
 
 main()
