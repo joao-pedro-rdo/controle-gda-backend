@@ -4,6 +4,8 @@ import {
   hashPassword,
   prisma,
 } from "../helpers/utils.js";
+// 📊 Importar métricas do Prometheus
+import { incrementLoginAttempts } from "../helpers/prometheus.js";
 
 export const signup = async (req, reply) => {
   const { login, role, password: pass } = req.body;
@@ -35,11 +37,15 @@ export const login = async (req, reply) => {
     });
 
     if (!user) {
+      // 📊 PROMETHEUS: Login falhou (usuário não encontrado)
+      incrementLoginAttempts("failed", null);
       return reply.status(401).send({ error: "Credenciais inválidas" });
     }
 
     const isValidPassword = await comparePassword(password, user.password);
     if (!isValidPassword) {
+      // 📊 PROMETHEUS: Login falhou (senha incorreta)
+      incrementLoginAttempts("failed", user.role);
       return reply.status(401).send({ error: "Credenciais inválidas" });
     }
 
@@ -56,6 +62,9 @@ export const login = async (req, reply) => {
     });
 
     console.log("✅ Cookie criado para proxy Nginx");
+
+    // 📊 PROMETHEUS: Login bem-sucedido
+    incrementLoginAttempts("success", user.role);
 
     const { password: _, ...userWithoutPassword } = user;
 

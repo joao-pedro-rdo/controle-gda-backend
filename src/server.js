@@ -4,12 +4,24 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fastifyStatic from "@fastify/static";
 import cors from "@fastify/cors";
-import multipart from "@fastify/multipart"; // Adicionar esta linha
+import multipart from "@fastify/multipart";
 import fastifyCookie from "@fastify/cookie";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 📊 Importar Prometheus
+import prometheusMiddleware from "./middleware/prometheus-metrics.js";
+import metricsRoutes from "./routes/metrics-routes.js";
+import {
+  updateVehiclesGauge,
+  updatePermissionariosGauge,
+  updateUnauthorizedPersonsGauge,
+  updateUsersGauge,
+} from "./helpers/prometheus.js";
+import { prisma } from "./helpers/utils.js";
+
+// Rotas
 import vehiclesRoute from "./routes/vehicles-routes.js";
 import entriesRoute from "./routes/entries-routes.js";
 import authRoutes from "./routes/auth-routes.js";
@@ -39,6 +51,10 @@ app.register(multipart, {
 });
 
 app.register(helmet);
+
+// 📊 PROMETHEUS: Adicionar middleware de métricas
+// IMPORTANTE: Adicionar ANTES das rotas para capturar todas as requisições
+app.addHook("onRequest", prometheusMiddleware);
 
 // Configuração para servir arquivos estáticos com headers CORS apropriados
 // app.register(fastifyStatic, {
@@ -72,6 +88,10 @@ await app.register(fastifyCookie, {
   },
 });
 
+// 📊 PROMETHEUS: Registrar rota /metrics (SEM autenticação!)
+app.register(metricsRoutes);
+
+// Registrar rotas da aplicação
 app.register(vehiclesRoute);
 app.register(entriesRoute);
 app.register(authRoutes);
@@ -91,4 +111,61 @@ app.listen({ port: port, host: "0.0.0.0" }, (err, address) => {
     process.exit(1);
   }
   console.log(`🚀 Server running on ${address}`);
+  console.log(`📊 Prometheus metrics available at ${address}/metrics`);
+  console.log(`❤️  Health check available at ${address}/health`);
+
+  // 📊 Iniciar atualização periódica dos Gauges (a cada 1 minuto)
+  startMetricsUpdater();
 });
+
+/**
+ * 🔄 Atualiza Gauges periodicamente
+ * 
+ * Esta função busca dados do banco e atualiza as métricas tipo Gauge:
+ * - Total de veículos
+ * - Total de permissionários
+ * - Total de pessoas não autorizadas
+ * - Total de usuários por role
+ */
+async function startMetricsUpdater() {
+  console.log("🔄 Iniciando atualizador de métricas...");
+
+  // Atualizar imediatamente na inicialização
+  await updateGauges();
+
+  // Atualizar a cada 60 segundos
+  setInterval(async () => {
+    await updateGauges();
+  }, 60000);
+}
+
+async function updateGauges() {
+  try {
+    // Contar veículos
+    const vehiclesCount = await prisma.vehicles.count();
+    updateVehiclesGauge(vehiclesCount);
+
+    // Contar permissionários
+    const permissionariosCount = await prisma.permissionario.count();
+    updatePermissionariosGauge(permissionariosCount);
+
+    // Contar pessoas não autorizadas
+    const unauthorizedCount = await prisma.pessoaNaoAutorizada.count();
+    updateUnauthorizedPersonsGauge(unauthorizedCount);
+
+    // Contar usuários por role
+    const usersGrouped = await prisma.user.groupBy({
+      by: ["role"],
+      _count: true,
+    });
+
+    usersGrouped.forEach((group) => {
+      updateUsersGauge(group.role, group._count);
+    });
+
+    // Log opcional (comentar em produção)
+    // console.log(`📊 [Metrics Updated] Vehicles: ${vehiclesCount}, Permissionários: ${permissionariosCount}`);
+  } catch (error) {
+    console.error("❌ Erro ao atualizar métricas:", error.message);
+  }
+}
