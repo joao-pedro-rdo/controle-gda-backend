@@ -279,12 +279,21 @@ export const createEntry = async (request, reply) => {
     });
 
     // 📊 PROMETHEUS: Registrar métrica de entrada
-    const entryType = formData.isPermissionario === "true"
-      ? "permissionario"
-      : formData.isMilitar === "true"
-      ? "militar"
-      : "visitor";
-    incrementEntryCounter(entryType, isScheduled, "success");
+    let entryType = "visitor"; // padrão
+    
+    if (formData.isPermissionario === "true") {
+      entryType = "permissionario";
+    } else if (formData.isMilitar === "true") {
+      entryType = "militar";
+    } else if (formData.isVisitor === "true") {
+      entryType = "visitor";
+    }
+    
+    // Só incrementar se for ENTRADA, não saída
+    if (formData.type !== "Saída") {
+      incrementEntryCounter(entryType, isScheduled, "success");
+      console.log(`📊 [Prometheus] Entrada registrada: type=${entryType}, scheduled=${isScheduled}`);
+    }
 
     // Se houver imagem, registrar upload
     if (imageFile) {
@@ -309,6 +318,12 @@ export const createEntry = async (request, reply) => {
 export const updateEntry = async (req, reply) => {
   try {
     const { exited, id } = req.body;
+    
+    // Buscar entrada antes de atualizar
+    const entry = await prisma.entry.findUnique({
+      where: { id }
+    });
+    
     const updatedEntry = await prisma.entry.update({
       where: {
         id,
@@ -317,6 +332,27 @@ export const updateEntry = async (req, reply) => {
         exited,
       },
     });
+    
+    // 📊 PROMETHEUS: Registrar saída se exited = true
+    if (exited && entry && !entry.exited) {
+      let exitType = "visitor";
+      if (entry.isPermissionario) {
+        exitType = "permissionario";
+      } else if (entry.isMilitar) {
+        exitType = "militar";
+      }
+      
+      incrementExitCounter(exitType);
+      
+      // Calcular tempo de permanência se houver data de entrada
+      if (entry.time) {
+        const stayHours = (Date.now() - new Date(entry.time).getTime()) / (1000 * 60 * 60);
+        recordStayDuration(exitType, stayHours);
+      }
+      
+      console.log(`📊 [Prometheus] Saída registrada: type=${exitType}`);
+    }
+    
     reply.status(201).send(updatedEntry);
   } catch (error) {
     console.error(error);

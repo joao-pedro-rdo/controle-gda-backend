@@ -143,6 +143,17 @@ export const usersTotal = new client.Gauge({
 });
 
 /**
+ * Gauge: Pessoas atualmente dentro da OM (não saíram)
+ * Labels: type (visitor/permissionario/militar)
+ */
+export const peopleInsideOM = new client.Gauge({
+  name: 'people_inside_om_total',
+  help: 'Total de pessoas atualmente dentro da OM (entradas sem saída)',
+  labelNames: ['type'],
+  registers: [register],
+});
+
+/**
  * Contador de veículos cadastrados (incremental)
  */
 export const vehiclesCreatedTotal = new client.Counter({
@@ -348,6 +359,15 @@ export function updateUsersGauge(role, count) {
 }
 
 /**
+ * Atualiza gauge de pessoas dentro da OM
+ * @param {string} type - "visitor" | "permissionario" | "militar"
+ * @param {number} count
+ */
+export function updatePeopleInsideOM(type, count) {
+  peopleInsideOM.set({ type }, count);
+}
+
+/**
  * Incrementa consultas a pessoas não autorizadas
  * @param {boolean} found
  */
@@ -374,4 +394,5 @@ export default {
   incrementVehicleCreated,
   updateVehiclesGauge,
   updatePermissionariosGauge,
+  updatePeopleInsideOM,
 };

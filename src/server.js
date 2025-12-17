@@ -18,6 +18,7 @@ import {
   updatePermissionariosGauge,
   updateUnauthorizedPersonsGauge,
   updateUsersGauge,
+  updatePeopleInsideOM,
 } from "./helpers/prometheus.js";
 import { prisma } from "./helpers/utils.js";
 
@@ -163,8 +164,42 @@ async function updateGauges() {
       updateUsersGauge(group.role, group._count);
     });
 
+    // 🆕 Contar pessoas dentro da OM (entradas sem saída)
+    // Visitantes dentro
+    const visitorsInside = await prisma.entry.count({
+      where: {
+        type: "Entrada",
+        exited: false,
+        isVisitor: true,
+        isScheduled: false, // Não contar agendamentos
+      },
+    });
+    updatePeopleInsideOM("visitor", visitorsInside);
+
+    // Permissionários dentro
+    const permissionariosInside = await prisma.entry.count({
+      where: {
+        type: "Entrada",
+        exited: false,
+        isPermissionario: true,
+        isScheduled: false,
+      },
+    });
+    updatePeopleInsideOM("permissionario", permissionariosInside);
+
+    // Militares dentro (se existir o campo)
+    const militaresInside = await prisma.entry.count({
+      where: {
+        type: "Entrada",
+        exited: false,
+        isMilitar: true,
+        isScheduled: false,
+      },
+    }).catch(() => 0); // Se não existir o campo, retornar 0
+    updatePeopleInsideOM("militar", militaresInside);
+
     // Log opcional (comentar em produção)
-    // console.log(`📊 [Metrics Updated] Vehicles: ${vehiclesCount}, Permissionários: ${permissionariosCount}`);
+    // console.log(`📊 [Metrics Updated] Vehicles: ${vehiclesCount}, Permissionários: ${permissionariosCount}, Dentro: V=${visitorsInside} P=${permissionariosInside} M=${militaresInside}`);
   } catch (error) {
     console.error("❌ Erro ao atualizar métricas:", error.message);
   }
