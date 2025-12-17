@@ -117,3 +117,22 @@ model PessoaNaoAutorizada {
 
   @@map("pessoas_nao_autorizadas")
 }
+
+model SystemSettings {
+  id           Int      @id @default(autoincrement())
+  settingKey   String   @unique @map("setting_key") @db.VarChar(50)
+  settingValue String?  @map("setting_value") @db.Text
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+model Destination {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique @db.VarChar(100)
+  displayOrder Int      @default(0) @map("display_order")
+  isDefault    Boolean  @default(false) @map("is_default")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("destinations")
+}

@@ -33,6 +33,7 @@ import surveillanceRoutes from "./routes/surveillance-routes.js";
 import permissionarioRoutes from "./routes/permissionario-routes.js";
 import imagesRoutes from "./routes/images-routes.js";
 import pessoasNaoAutorizadasRoutes from "./routes/pessoas-nao-autorizadas-routes.js";
+import settingsRoutes from "./routes/settings-routes.js";
 
 const app = fastify();
 
@@ -103,6 +104,7 @@ app.register(surveillanceRoutes);
 app.register(permissionarioRoutes);
 app.register(imagesRoutes);
 app.register(pessoasNaoAutorizadasRoutes);
+app.register(settingsRoutes);
 
 const port = 5000;
 
