@@ -1,6 +1,77 @@
 import { prisma } from "../helpers/utils.js";
 
 // ==========================================
+// 0. CORES DO SISTEMA
+// ==========================================
+
+/**
+ * GET /settings/colors
+ * Retorna as cores do sistema (primária e secundária)
+ */
+export const getColors = async (req, reply) => {
+  try {
+    const settings = await prisma.systemSettings.findMany({
+      where: {
+        settingKey: { in: ["primary_color", "secondary_color"] },
+      },
+    });
+
+    const config = settings.reduce((acc, row) => {
+      acc[row.settingKey] = row.settingValue;
+      return acc;
+    }, {});
+
+    reply.status(200).send({
+      primaryColor: config.primary_color || "#dc2626",
+      secondaryColor: config.secondary_color || "#991b1b",
+    });
+  } catch (error) {
+    console.error("❌ Erro ao buscar cores:", error);
+    reply.status(500).send({
+      error: "Erro ao buscar cores",
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * POST /settings/colors
+ * Atualiza as cores do sistema
+ */
+export const updateColors = async (req, reply) => {
+  try {
+    const { primaryColor, secondaryColor } = req.body;
+
+    if (primaryColor !== undefined) {
+      await prisma.systemSettings.upsert({
+        where: { settingKey: "primary_color" },
+        update: { settingValue: primaryColor },
+        create: { settingKey: "primary_color", settingValue: primaryColor },
+      });
+    }
+
+    if (secondaryColor !== undefined) {
+      await prisma.systemSettings.upsert({
+        where: { settingKey: "secondary_color" },
+        update: { settingValue: secondaryColor },
+        create: { settingKey: "secondary_color", settingValue: secondaryColor },
+      });
+    }
+
+    reply.status(200).send({
+      success: true,
+      message: "Cores atualizadas com sucesso",
+    });
+  } catch (error) {
+    console.error("❌ Erro ao atualizar cores:", error);
+    reply.status(500).send({
+      error: "Erro ao atualizar cores",
+      message: error.message,
+    });
+  }
+};
+
+// ==========================================
 // 1. CONFIGURAÇÕES GERAIS DO SISTEMA
 // ==========================================
 

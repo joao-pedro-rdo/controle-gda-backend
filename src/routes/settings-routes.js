@@ -3,6 +3,30 @@ import { verifyToken, verifyS2Role } from "../middleware/auth.js";
 
 export default async function routes(fastify) {
   // ==========================================
+  // CORES DO SISTEMA
+  // ==========================================
+
+  /**
+   * GET /settings/colors
+   * Retorna as cores do sistema (público - usado no login)
+   */
+  fastify.get(
+    "/settings/colors",
+    SettingsController.getColors
+  );
+
+  /**
+   * POST /settings/colors
+   * Atualiza as cores do sistema
+   * Requer: Autenticação + Role S2
+   */
+  fastify.post(
+    "/settings/colors",
+    { preHandler: verifyS2Role },
+    SettingsController.updateColors
+  );
+
+  // ==========================================
   // CONFIGURAÇÕES GERAIS DO SISTEMA
   // ==========================================
   

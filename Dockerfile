@@ -5,7 +5,7 @@ FROM node:20
 WORKDIR /app
 
 # Copiar apenas os arquivos de dependências primeiro (cache layer)
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json ./
 
 # Instalar dependências usando apenas NPM
 RUN npm ci --only=production
@@ -13,8 +13,8 @@ RUN npm ci --only=production
 # Copiar os arquivos da aplicação
 COPY . .
 
-# Gerar o cliente Prisma
-RUN npx prisma generate
+# # Gerar o cliente Prisma
+# RUN npx prisma generate
 
 # Criar diretórios necessários
 RUN mkdir -p /app/uploads/visitors /app/uploads/permissionarios /app/uploads/temp
@@ -28,4 +28,4 @@ RUN chmod -R 755 /app/public
 EXPOSE 5000
 
 # Comando de inicialização
-CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && npm start"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma generate && ./node_modules/.bin/prisma migrate deploy && npm start"]
