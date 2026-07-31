@@ -1,15 +1,13 @@
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const { PrismaClient } = require("@prisma/client");
+import { prisma } from "../lib/prisma.ts";
 import { compare, genSaltSync, hash } from "bcrypt";
 import jwt from "jsonwebtoken";
+
+export { prisma };
 
 export const envs = {
   //! Ajuster a palavra chave do webtoken
   JWT_SECRET: process.env.JWT_SECRET || "8bec-selva-brasil",
 };
-
-export const prisma = new PrismaClient();
 
 export const hashPassword = (password) => {
   let salt = genSaltSync(10);

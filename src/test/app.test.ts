@@ -25,4 +25,18 @@ describe("app bootstrap", () => {
     const payload = response.json();
     expect(payload.status).toBe("ok");
   });
+
+  it("uses the standardized not-found error handler", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/rota-inexistente",
+    });
+
+    expect(response.statusCode).toBe(404);
+
+    const payload = response.json();
+    expect(payload.statusCode).toBe(404);
+    expect(payload.code).toBe("NOT_FOUND");
+    expect(typeof payload.message).toBe("string");
+  });
 });

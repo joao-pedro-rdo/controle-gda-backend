@@ -5,6 +5,7 @@
     "moduleResolution": "NodeNext",
     "allowJs": true,
     "checkJs": false,
+    "allowImportingTsExtensions": true,
     "noEmit": true,
     "strict": false,
     "isolatedModules": true,

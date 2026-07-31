@@ -16,7 +16,8 @@ import {
   updateUsersGauge,
   updatePeopleInsideOM,
 } from "./helpers/prometheus.js";
-import { prisma } from "./helpers/utils.js";
+import { prisma } from "./lib/prisma.js";
+import { setupErrorHandler } from "./lib/error-handler.js";
 
 import vehiclesRoute from "./routes/vehicles-routes.js";
 import entriesRoute from "./routes/entries-routes.js";
@@ -33,6 +34,8 @@ const __dirname = path.dirname(__filename);
 
 export async function buildApp() {
   const app = fastify();
+
+  setupErrorHandler(app);
 
   app.register(cors, {
     origin: true,
