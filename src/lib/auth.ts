@@ -2,7 +2,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import jwt from "jsonwebtoken";
 
 import { forbidden, internal, unauthorized } from "./errors.js";
-import { prisma } from "./prisma.js";
+import { prismaUserRepository } from "../repositories/user-repository.js";
 
 export interface AuthUser {
   id: number;
@@ -18,7 +18,10 @@ export interface AuthTokenPayload {
 
 export const AUTH_COOKIE_NAME = "accessToken";
 
-const COOKIE_MAX_AGE = 8 * 60 * 60 * 1000; // 8 horas
+const COOKIE_MAX_AGE = 8 * 60 * 60; // 8 horas em segundos
+
+export const S2_ROLE = "S2";
+export const GUARDA_ROLES = ["Guarda", "S2", "Scmt", "SFPC"] as const;
 
 export function getJwtSecret(): string {
   if (!process.env.JWT_SECRET) {
@@ -54,11 +57,21 @@ export function verifyAccessToken(token: string): AuthTokenPayload {
   }
 }
 
+export function signAccessToken(user: AuthTokenPayload): string {
+  const secret = getJwtSecret();
+  return jwt.sign(
+    { id: user.id, login: user.login, role: user.role },
+    secret,
+    {
+      expiresIn: "8h",
+      issuer: "controle-gda",
+      audience: "controle-gda-users",
+    }
+  );
+}
+
 export async function findAuthUser(id: number): Promise<AuthUser | null> {
-  return prisma.user.findUnique({
-    where: { id },
-    select: { id: true, login: true, role: true },
-  });
+  return prismaUserRepository.findById(id);
 }
 
 export async function requireAuth(request: FastifyRequest): Promise<AuthUser> {
@@ -95,8 +108,8 @@ export function requireRoles(...allowedRoles: string[]) {
   };
 }
 
-export const requireS2Role = requireRoles("S2");
-export const requireGuardaRole = requireRoles("Guarda", "S2", "Scmt");
+export const requireS2Role = requireRoles(S2_ROLE);
+export const requireGuardaRole = requireRoles(...GUARDA_ROLES);
 
 export function setAuthCookie(reply: FastifyReply, token: string): void {
   reply.setCookie(AUTH_COOKIE_NAME, token, {

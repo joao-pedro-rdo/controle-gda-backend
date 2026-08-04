@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   AUTH_COOKIE_NAME,
+  clearAuthCookie,
   extractAccessToken,
   setAuthCookie,
   verifyAccessToken,
@@ -79,7 +80,35 @@ describe("auth helpers", () => {
 
       expect(calls[0].name).toBe(AUTH_COOKIE_NAME);
       expect(calls[0].value).toBe("token-123");
-      expect(calls[0].options).toMatchObject({ httpOnly: true, path: "/" });
+      expect(calls[0].options).toMatchObject({
+        httpOnly: true,
+        secure: false,
+        sameSite: "lax",
+        maxAge: 8 * 60 * 60,
+        path: "/",
+      });
+    });
+  });
+
+  describe("clearAuthCookie", () => {
+    it("clears the accessToken cookie with the same proxy-compatible options", () => {
+      const calls: Array<{ name: string; options: object }> = [];
+
+      const reply = {
+        clearCookie: (name: string, options: object) => {
+          calls.push({ name, options });
+        },
+      } as unknown as FastifyReply;
+
+      clearAuthCookie(reply);
+
+      expect(calls[0].name).toBe(AUTH_COOKIE_NAME);
+      expect(calls[0].options).toMatchObject({
+        httpOnly: true,
+        secure: false,
+        sameSite: "lax",
+        path: "/",
+      });
     });
   });
 });
