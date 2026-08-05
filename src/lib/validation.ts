@@ -1,21 +1,33 @@
-import type { ZodType } from "zod";
+import type { ZodType, ZodTypeDef } from "zod";
 
 import { fromZodError } from "./errors.js";
 
-function parse<T>(schema: ZodType<T>, value: unknown): T {
+function parse<Output>(
+  schema: ZodType<Output, ZodTypeDef, any>,
+  value: unknown
+): Output {
   const result = schema.safeParse(value);
   if (!result.success) throw fromZodError(result.error);
   return result.data;
 }
 
-export function parseBody<T>(schema: ZodType<T>, body: unknown): T {
+export function parseBody<Output>(
+  schema: ZodType<Output, ZodTypeDef, any>,
+  body: unknown
+): Output {
   return parse(schema, body);
 }
 
-export function parseParams<T>(schema: ZodType<T>, params: unknown): T {
+export function parseParams<Output>(
+  schema: ZodType<Output, ZodTypeDef, any>,
+  params: unknown
+): Output {
   return parse(schema, params);
 }
 
-export function parseQuery<T>(schema: ZodType<T>, query: unknown): T {
+export function parseQuery<Output>(
+  schema: ZodType<Output, ZodTypeDef, any>,
+  query: unknown
+): Output {
   return parse(schema, query);
 }

@@ -1,14 +1,17 @@
-import * as EntriesController from "../controllers/entries-controller.js";
+import type { FastifyInstance } from "fastify";
+
+import * as EntriesController from "../controllers/entries-controller.ts";
+import * as MigrationController from "../controllers/entries-migration-controller.js";
 import {
   verifyToken,
   verifyGuardaRole,
   verifyS2Role,
 } from "../middleware/auth.js";
 
-export default async function routes(fastify) {
-  // IMPORTANTE: Rotas mais específicas devem vir ANTES das genéricas
+export default async function routes(fastify: FastifyInstance) {
+  // IMPORTANTE: Rotas mais específicas devem vir ANTES das genéricas.
 
-  // 🆕 NOVA ROTA PARA AGENDAMENTOS
+  // Agendamentos
   fastify.post(
     "/entries/schedule",
     { preHandler: verifyS2Role },
@@ -32,8 +35,12 @@ export default async function routes(fastify) {
     EntriesController.confirmScheduledEntry
   );
 
-  // Rotas que precisam de autenticação básica
-  fastify.get("/entries", { preHandler: verifyToken }, EntriesController.index);
+  // Entradas
+  fastify.get(
+    "/entries",
+    { preHandler: verifyToken },
+    EntriesController.index
+  );
   fastify.get(
     "/entries/:id",
     { preHandler: verifyToken },
@@ -55,23 +62,22 @@ export default async function routes(fastify) {
     EntriesController.updateEntry
   );
 
-  // 🆕 ROTA ESPECÍFICA PARA SAÍDAS
+  // Saídas
   fastify.post(
     "/exits",
     { preHandler: verifyGuardaRole },
     EntriesController.createExit
   );
 
-  // 🔧 ROTAS DE MIGRAÇÃO DE IMAGENS
+  // Rotas de migração de imagens (mantidas no controller legado)
   fastify.post(
     "/migrate-permissionario-images",
     { preHandler: verifyS2Role },
-    EntriesController.migratePermissionarioImages
+    MigrationController.migratePermissionarioImages
   );
-
   fastify.post(
     "/migrate-permissionario-image/:id",
     { preHandler: verifyS2Role },
-    EntriesController.migratePermissionarioImageById
+    MigrationController.migratePermissionarioImageById
   );
 }
