@@ -1,5 +1,4 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { MultipartFile } from "@fastify/multipart";
 
 import {
   confirmScheduledEntryParamsSchema,
@@ -11,32 +10,10 @@ import {
   scheduledDateQuerySchema,
   updateEntrySchema,
 } from "../schemas/entries-schema.js";
-import { entryService, type EntryImageInput } from "../services/entry-service.js";
+import { entryService } from "../services/entry-service.js";
 import { sendSuccess } from "../lib/http.js";
+import { readMultipartForm } from "../lib/multipart.js";
 import { parseBody, parseParams, parseQuery } from "../lib/validation.js";
-
-interface MultipartResult {
-  form: Record<string, string>;
-  image: EntryImageInput | null;
-}
-
-async function readMultipartForm(request: FastifyRequest): Promise<MultipartResult> {
-  const parts = request.parts();
-  const form: Record<string, string> = {};
-  let image: EntryImageInput | null = null;
-
-  for await (const part of parts) {
-    if (part.type === "file" && part.fieldname === "image") {
-      const file = part as MultipartFile;
-      const buffer = await file.toBuffer();
-      image = { buffer, bytesRead: buffer.length };
-    } else if (part.type === "field") {
-      form[part.fieldname] = part.value as string;
-    }
-  }
-
-  return { form, image };
-}
 
 export async function index(req: FastifyRequest, reply: FastifyReply) {
   return sendSuccess(reply, await entryService.index());

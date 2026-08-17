@@ -72,6 +72,13 @@ const imageStorage = {
   saveVisitorImage: vi.fn(async (buffer: Buffer) => {
     return `/uploads/visitors/${buffer.length}.encrypted`;
   }),
+  savePermissionarioImage: vi.fn(async (buffer: Buffer) => {
+    return `/uploads/permissionarios/${buffer.length}.encrypted`;
+  }),
+  saveUnauthorizedPersonImage: vi.fn(async (buffer: Buffer) => {
+    return `/uploads/pessoas-nao-autorizadas/${buffer.length}.encrypted`;
+  }),
+  deleteImage: vi.fn(async () => {}),
 };
 
 const permissionarios = new Map<string, Entry>();

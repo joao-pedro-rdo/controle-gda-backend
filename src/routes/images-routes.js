@@ -1,5 +1,5 @@
 import * as ImagesController from "../controllers/images-controller.js";
-import * as PessoasNaoAutorizadasController from "../controllers/pessoas-nao-autorizadas-controller.js";
+import * as PessoasNaoAutorizadasController from "../controllers/pessoa-nao-autorizada-controller.ts";
 import {
   verifyToken,
   verifyS2Role,
