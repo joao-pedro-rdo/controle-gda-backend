@@ -1,82 +1,72 @@
-import * as ImagesController from "../controllers/images-controller.js";
+import type { FastifyInstance } from "fastify";
+
+import * as ImagesController from "../controllers/images-controller.ts";
 import * as PessoasNaoAutorizadasController from "../controllers/pessoa-nao-autorizada-controller.ts";
 import {
-  verifyToken,
-  verifyS2Role,
   verifyGuardaRole,
+  verifyS2Role,
+  verifyToken,
 } from "../middleware/auth.js";
 
-export default async function routes(fastify) {
-  console.log("🔧 Registrando rotas de imagens do sistema...");
-  
-  // Rota protegida para servir imagens de visitantes
+export default async function routes(fastify: FastifyInstance) {
+  // Imagens de visitantes - qualquer perfil autenticado
   fastify.get(
     "/images/visitors/:filename",
     { preHandler: verifyToken },
     ImagesController.getVisitorImage
   );
-
-  // Rota para verificar se imagem existe (sem retornar a imagem)
   fastify.head(
     "/images/visitors/:filename",
     { preHandler: verifyToken },
     ImagesController.checkVisitorImageExists
   );
 
-  // Rota protegida para servir imagens de permissionários
+  // Imagens de permissionários - qualquer perfil autenticado
   fastify.get(
     "/images/permissionarios/:filename",
     { preHandler: verifyToken },
     ImagesController.getPermissionarioImage
   );
 
-  // 🔧 IMAGEM DE PESSOA NÃO AUTORIZADA - Guarda + S2 podem ver
+  // Imagens de pessoas não autorizadas - Guarda (e perfis superiores)
   fastify.get(
     "/images/pessoas-nao-autorizadas/:filename",
-    { preHandler: verifyGuardaRole }, // 🔧 Guarda pode ver imagens
+    { preHandler: verifyGuardaRole },
     PessoasNaoAutorizadasController.getImage
   );
 
-  // ========== ROTAS DE IMAGENS DO SISTEMA (Logo e Background) ==========
-  
-  // POST - Upload de LOGO (apenas S2)
+  // Upload de LOGO do sistema (apenas S2)
   fastify.post(
     "/system-images/upload/logo",
     { preHandler: verifyS2Role },
     ImagesController.uploadLogo
   );
 
-  // POST - Upload de BACKGROUND (apenas S2)
+  // Upload de BACKGROUND do sistema (apenas S2)
   fastify.post(
     "/system-images/upload/background",
     { preHandler: verifyS2Role },
     ImagesController.uploadBackground
   );
 
-  // GET - Listar imagens atuais do sistema (autenticado)
+  // Listar imagens atuais do sistema (autenticado)
+  // IMPORTANTE: antes da rota genérica :filename
   fastify.get(
     "/system-images/current",
     { preHandler: verifyToken },
     ImagesController.getCurrentSystemImages
   );
 
-  // DELETE - Resetar imagem para padrão (apenas S2)
+  // Resetar imagem para padrão (apenas S2)
   fastify.delete(
     "/system-images/:type",
     { preHandler: verifyS2Role },
     ImagesController.resetSystemImage
   );
 
-  // GET - Servir imagens do sistema (público para permitir acesso na tela de login)
+  // Servir imagens do sistema (público para a tela de login)
   fastify.get(
     "/system-images/:filename",
     ImagesController.getSystemImage
   );
-
-  console.log("✅ Rotas de imagens do sistema registradas:");
-  console.log("   POST /system-images/upload/logo");
-  console.log("   POST /system-images/upload/background");
-  console.log("   GET /system-images/current");
-  console.log("   DELETE /system-images/:type");
-  console.log("   GET /system-images/:filename");
 }

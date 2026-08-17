@@ -1,7 +1,4 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 
 import {
   createPessoaNaoAutorizadaSchema,
@@ -12,14 +9,9 @@ import { pessoaNaoAutorizadaService } from "../services/pessoa-nao-autorizada-se
 import { sendSuccess } from "../lib/http.js";
 import { readMultipartForm } from "../lib/multipart.js";
 import { parseBody, parseParams } from "../lib/validation.js";
-import { decryptImage } from "../helpers/imageEncryption.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const pessoasNaoAutorizadasDir = path.join(
-  __dirname,
-  "../../uploads/pessoas-nao-autorizadas"
-);
+import { badRequest, notFound } from "../lib/errors.js";
+import { isSafeFilename } from "../lib/upload-validation.js";
+import { readStoredImage } from "../helpers/imageServing.js";
 
 export async function index(req: FastifyRequest, reply: FastifyReply) {
   return sendSuccess(reply, await pessoaNaoAutorizadaService.list());
@@ -64,49 +56,19 @@ export async function remove(req: FastifyRequest, reply: FastifyReply) {
 export async function getImage(req: FastifyRequest, reply: FastifyReply) {
   const { filename } = req.params as { filename?: string };
 
-  if (!filename || filename.includes("..") || filename.includes("/")) {
-    return reply.status(400).send({ error: "Nome de arquivo inválido" });
+  if (!filename || !isSafeFilename(filename)) {
+    throw badRequest("Nome de arquivo inválido");
   }
 
-  const encryptedPath = path.join(pessoasNaoAutorizadasDir, filename);
-  const originalPath = path.join(
-    pessoasNaoAutorizadasDir,
-    filename.replace(/\.encrypted$/, "")
-  );
-
-  let imagePath: string;
-  let isEncrypted = false;
-
-  if (fs.existsSync(encryptedPath) && filename.endsWith(".encrypted")) {
-    imagePath = encryptedPath;
-    isEncrypted = true;
-  } else if (fs.existsSync(originalPath)) {
-    imagePath = originalPath;
-    isEncrypted = false;
-  } else {
-    return reply.status(404).send({ error: "Imagem não encontrada" });
-  }
-
-  let imageBuffer: Buffer;
-  let contentType = "image/jpeg";
-
-  if (isEncrypted) {
-    imageBuffer = decryptImage(imagePath);
-    if (imageBuffer[0] === 0xff && imageBuffer[1] === 0xd8) {
-      contentType = "image/jpeg";
-    } else if (imageBuffer[0] === 0x89 && imageBuffer[1] === 0x50) {
-      contentType = "image/png";
-    }
-  } else {
-    imageBuffer = fs.readFileSync(imagePath);
-  }
+  const image = readStoredImage("pessoas-nao-autorizadas", filename);
+  if (!image) throw notFound("Imagem não encontrada");
 
   reply.headers({
-    "Content-Type": contentType,
+    "Content-Type": image.contentType,
     "Cache-Control": "private, max-age=3600",
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "default-src 'none'",
   });
 
-  return reply.send(imageBuffer);
+  return reply.send(image.buffer);
 }

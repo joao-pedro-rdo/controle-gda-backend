@@ -76,6 +76,13 @@ export function unprocessable(
   return new AppError(422, "UNPROCESSABLE_ENTITY", message, options);
 }
 
+export function payloadTooLarge(
+  message = "Arquivo excede o limite permitido",
+  options?: AppErrorOptions
+): AppError {
+  return new AppError(413, "PAYLOAD_TOO_LARGE", message, options);
+}
+
 export function internal(
   message = "Erro interno do servidor",
   options?: AppErrorOptions

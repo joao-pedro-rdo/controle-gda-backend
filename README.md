@@ -175,9 +175,13 @@ verifyGuardaRole(); // Verifica se o usuário é Guarda, S2 ou Scmt
 
 backend/
 ├── src/
-│ ├── server.js # Configuração do servidor Fastify
-│ ├── controllers/ # Lógica de negócio
+│ ├── server.ts # Bootstrap: apenas sobe o servidor
+│ ├── app.ts # Monta o Fastify com plugins e rotas
+│ ├── controllers/ # Camada fina: valida e responde
 │ ├── routes/ # Definição de rotas
+│ ├── services/ # Regras de negócio
+│ ├── repositories/ # Acesso ao banco (Prisma)
+│ ├── schemas/ # Schemas Zod
 │ ├── middleware/ # Autenticação e validação
 │ └── helpers/ # Funções utilitárias
 ├── prisma/
