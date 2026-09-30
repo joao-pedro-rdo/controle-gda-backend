@@ -16,7 +16,7 @@ function fakeStorage(): SystemImageStorage & { files: string[]; buffers: Map<str
   return {
     files,
     buffers,
-    async save(_type, filename, buffer) {
+    async save(filename, buffer) {
       files.push(filename);
       buffers.set(filename, buffer);
     },
@@ -138,7 +138,7 @@ describe("fsSystemImageStorage", () => {
   it("persists files on disk and lists them", async () => {
     const storage = createFsSystemImageStorage(tmpDir);
 
-    await storage.save("background", "bg-cover.jpg", Buffer.from("data"));
+    await storage.save("bg-cover.jpg", Buffer.from("data"));
 
     await expect(storage.listFileNames()).resolves.toEqual(["bg-cover.jpg"]);
     expect(storage.read("bg-cover.jpg")).toEqual(Buffer.from("data"));
@@ -146,8 +146,8 @@ describe("fsSystemImageStorage", () => {
 
   it("removes only files matching the prefix", async () => {
     const storage = createFsSystemImageStorage(tmpDir);
-    await storage.save("logo", "logo.png", Buffer.from("a"));
-    await storage.save("background", "bg-cover.jpg", Buffer.from("b"));
+    await storage.save("logo.png", Buffer.from("a"));
+    await storage.save("bg-cover.jpg", Buffer.from("b"));
 
     const removed = await storage.removeMatching("logo");
     const files = await storage.listFileNames();

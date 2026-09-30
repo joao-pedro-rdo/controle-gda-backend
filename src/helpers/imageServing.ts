@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import type { FastifyReply } from "fastify";
 
 import { decryptImage } from "./imageEncryption.js";
 
@@ -59,4 +60,17 @@ export function readStoredImage(
   }
 
   return { buffer, contentType };
+}
+
+export function sendStoredImage(
+  reply: FastifyReply,
+  image: StoredImageResult
+): FastifyReply {
+  reply.headers({
+    "Content-Type": image.contentType,
+    "Cache-Control": "private, max-age=3600",
+    "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy": "default-src 'none'",
+  });
+  return reply.send(image.buffer);
 }

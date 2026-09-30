@@ -26,7 +26,7 @@ export interface StoredSystemImage {
 }
 
 export interface SystemImageStorage {
-  save(type: SystemImageType, filename: string, buffer: Buffer): Promise<void>;
+  save(filename: string, buffer: Buffer): Promise<void>;
   removeMatching(prefix: string): Promise<string[]>;
   listFileNames(): Promise<string[]>;
   read(filename: string): Buffer | null;
@@ -51,14 +51,17 @@ export function createSystemImageService(
       const prefix = SYSTEM_IMAGE_PREFIXES[type];
       const filename = normalizeSystemImageName(prefix, extension);
       await storage.removeMatching(prefix);
-      await storage.save(type, filename, buffer);
+      await storage.save(filename, buffer);
       return { url: `/system-images/${filename}`, filename };
     },
 
     async getCurrent() {
       const files = await storage.listFileNames();
-      const logo = files.find((f) => f.startsWith("logo")) ?? null;
-      const background = files.find((f) => f.startsWith("bg-cover")) ?? null;
+      const logo =
+        files.find((f) => f.startsWith(SYSTEM_IMAGE_PREFIXES.logo)) ?? null;
+      const background =
+        files.find((f) => f.startsWith(SYSTEM_IMAGE_PREFIXES.background)) ??
+        null;
       return {
         logo: logo ? `/system-images/${logo}` : null,
         background: background ? `/system-images/${background}` : null,
@@ -81,7 +84,7 @@ export function createFsSystemImageStorage(
   dir: string = defaultSystemImagesDir
 ): SystemImageStorage {
   return {
-    async save(_type, filename, buffer) {
+    async save(filename, buffer) {
       fs.mkdirSync(dir, { recursive: true });
       await fs.promises.writeFile(path.join(dir, filename), buffer);
     },

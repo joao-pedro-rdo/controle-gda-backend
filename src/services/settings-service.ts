@@ -1,5 +1,6 @@
 import {
   conflict,
+  hasPrismaCode,
   notFound,
 } from "../lib/errors.js";
 import {
@@ -48,14 +49,6 @@ export interface SettingsServiceOptions {
   repository?: SettingsRepository;
 }
 
-function hasPrismaCode(error: unknown, code: string): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    (error as { code?: unknown }).code === code
-  );
-}
-
 function toSettingsMap(rows: { settingKey: string; settingValue: string | null }[]): Record<string, string | null> {
   return rows.reduce<Record<string, string | null>>((acc, row) => {
     acc[row.settingKey] = row.settingValue;
@@ -68,44 +61,52 @@ export function createSettingsService(
 ): SettingsService {
   const repository = options.repository ?? prismaSettingsRepository;
 
-  return {
-    async getColors() {
-      const rows = await repository.getByKeys([
-        "primary_color",
-        "secondary_color",
-      ]);
-      const config = toSettingsMap(rows);
-      return {
-        primaryColor: config.primary_color || DEFAULT_PRIMARY_COLOR,
-        secondaryColor: config.secondary_color || DEFAULT_SECONDARY_COLOR,
-      };
-    },
+  async function getColors(): Promise<SystemColors> {
+    const rows = await repository.getByKeys([
+      "primary_color",
+      "secondary_color",
+    ]);
+    const config = toSettingsMap(rows);
+    return {
+      primaryColor: config.primary_color || DEFAULT_PRIMARY_COLOR,
+      secondaryColor: config.secondary_color || DEFAULT_SECONDARY_COLOR,
+    };
+  }
 
-    async updateColors(input) {
+  async function getSystemSettings(): Promise<SystemSettingsView> {
+    const rows = await repository.getByKeys([
+      "page_title",
+      "logo_path",
+      "background_path",
+    ]);
+    const config = toSettingsMap(rows);
+    return {
+      pageTitle: config.page_title || DEFAULT_PAGE_TITLE,
+      logo: config.logo_path || DEFAULT_LOGO_PATH,
+      background: config.background_path || DEFAULT_BACKGROUND_PATH,
+    };
+  }
+
+  async function listDestinations(): Promise<string[]> {
+    const destinations = await repository.listDestinations();
+    return destinations.map((d) => d.name);
+  }
+
+  return {
+    getColors,
+    updateColors: async (input) => {
       if (input.primaryColor !== undefined) {
         await repository.set("primary_color", input.primaryColor);
       }
       if (input.secondaryColor !== undefined) {
         await repository.set("secondary_color", input.secondaryColor);
       }
-      return this.getColors();
+      return getColors();
     },
 
-    async getSystemSettings() {
-      const rows = await repository.getByKeys([
-        "page_title",
-        "logo_path",
-        "background_path",
-      ]);
-      const config = toSettingsMap(rows);
-      return {
-        pageTitle: config.page_title || DEFAULT_PAGE_TITLE,
-        logo: config.logo_path || DEFAULT_LOGO_PATH,
-        background: config.background_path || DEFAULT_BACKGROUND_PATH,
-      };
-    },
+    getSystemSettings,
 
-    async updateSystemSettings(input) {
+    updateSystemSettings: async (input) => {
       if (input.pageTitle !== undefined) {
         await repository.set("page_title", input.pageTitle);
       }
@@ -115,10 +116,10 @@ export function createSettingsService(
       if (input.background !== undefined) {
         await repository.set("background_path", input.background);
       }
-      return this.getSystemSettings();
+      return getSystemSettings();
     },
 
-    async resetSystemSettings() {
+    resetSystemSettings: async () => {
       await repository.set("page_title", DEFAULT_PAGE_TITLE);
       await repository.set("logo_path", DEFAULT_LOGO_PATH);
       await repository.set("background_path", DEFAULT_BACKGROUND_PATH);
@@ -129,12 +130,9 @@ export function createSettingsService(
       };
     },
 
-    async listDestinations() {
-      const destinations = await repository.listDestinations();
-      return destinations.map((d) => d.name);
-    },
+    listDestinations,
 
-    async addDestination(input) {
+    addDestination: async (input) => {
       try {
         await repository.createDestination(input.name);
       } catch (error) {
@@ -143,10 +141,10 @@ export function createSettingsService(
         }
         throw error;
       }
-      return this.listDestinations();
+      return listDestinations();
     },
 
-    async deleteDestination(params) {
+    deleteDestination: async (params) => {
       try {
         await repository.deleteDestination(decodeURIComponent(params.name));
       } catch (error) {
@@ -155,12 +153,12 @@ export function createSettingsService(
         }
         throw error;
       }
-      return this.listDestinations();
+      return listDestinations();
     },
 
-    async resetDestinations() {
+    resetDestinations: async () => {
       await repository.deleteCustomDestinations();
-      return this.listDestinations();
+      return listDestinations();
     },
   };
 }

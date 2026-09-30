@@ -5,13 +5,14 @@ import {
   pessoaNaoAutorizadaIdParamsSchema,
   updatePessoaNaoAutorizadaSchema,
 } from "../schemas/pessoa-nao-autorizada-schema.js";
+import { imageFilenameParamsSchema } from "../schemas/images-schema.js";
 import { pessoaNaoAutorizadaService } from "../services/pessoa-nao-autorizada-service.js";
 import { sendSuccess } from "../lib/http.js";
 import { readMultipartForm } from "../lib/multipart.js";
 import { parseBody, parseParams } from "../lib/validation.js";
 import { badRequest, notFound } from "../lib/errors.js";
 import { isSafeFilename } from "../lib/upload-validation.js";
-import { readStoredImage } from "../helpers/imageServing.js";
+import { readStoredImage, sendStoredImage } from "../helpers/imageServing.js";
 
 export async function index(req: FastifyRequest, reply: FastifyReply) {
   return sendSuccess(reply, await pessoaNaoAutorizadaService.list());
@@ -54,21 +55,14 @@ export async function remove(req: FastifyRequest, reply: FastifyReply) {
 }
 
 export async function getImage(req: FastifyRequest, reply: FastifyReply) {
-  const { filename } = req.params as { filename?: string };
+  const { filename } = parseParams(imageFilenameParamsSchema, req.params);
 
-  if (!filename || !isSafeFilename(filename)) {
+  if (!isSafeFilename(filename)) {
     throw badRequest("Nome de arquivo inválido");
   }
 
   const image = readStoredImage("pessoas-nao-autorizadas", filename);
   if (!image) throw notFound("Imagem não encontrada");
 
-  reply.headers({
-    "Content-Type": image.contentType,
-    "Cache-Control": "private, max-age=3600",
-    "X-Content-Type-Options": "nosniff",
-    "Content-Security-Policy": "default-src 'none'",
-  });
-
-  return reply.send(image.buffer);
+  return sendStoredImage(reply, image);
 }

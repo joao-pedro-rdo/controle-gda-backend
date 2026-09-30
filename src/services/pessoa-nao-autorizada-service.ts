@@ -1,6 +1,6 @@
 import type { PessoaNaoAutorizada } from "@prisma/client";
 
-import { conflict, notFound } from "../lib/errors.js";
+import { conflict, hasPrismaCode, notFound } from "../lib/errors.js";
 import {
   prismaPessoaNaoAutorizadaRepository,
   type PessoaNaoAutorizadaData,
@@ -15,14 +15,6 @@ import {
   type ImageStorage,
 } from "./image-storage-service.js";
 import type { UploadedImage } from "../lib/multipart.js";
-
-function hasPrismaCode(error: unknown, code: string): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    (error as { code?: unknown }).code === code
-  );
-}
 
 export interface PessoaNaoAutorizadaImageOptions {
   image?: UploadedImage | null;

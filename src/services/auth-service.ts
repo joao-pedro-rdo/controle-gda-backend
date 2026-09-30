@@ -10,6 +10,7 @@ import {
   badRequest,
   conflict,
   forbidden,
+  hasPrismaCode,
   notFound,
   unauthorized,
 } from "../lib/errors.js";
@@ -29,14 +30,6 @@ import type {
 
 function toPublicUser(user: UserWithPassword | PublicUser): PublicUser {
   return { id: user.id, login: user.login, role: user.role };
-}
-
-function hasPrismaCode(error: unknown, code: string): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    (error as { code?: unknown }).code === code
-  );
 }
 
 export function createAuthService(repository: UserRepository = prismaUserRepository) {

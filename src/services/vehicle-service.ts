@@ -1,6 +1,6 @@
 import type { Vehicles } from "@prisma/client";
 
-import { conflict, notFound } from "../lib/errors.js";
+import { conflict, hasPrismaCode, notFound } from "../lib/errors.js";
 import {
   prismaVehicleRepository,
   type VehicleData,
@@ -10,14 +10,6 @@ import type {
   CreateVehicleInput,
   UpdateVehicleInput,
 } from "../schemas/vehicles-schema.js";
-
-function hasPrismaCode(error: unknown, code: string): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    (error as { code?: unknown }).code === code
-  );
-}
 
 function toVehicleData(input: CreateVehicleInput): VehicleData {
   return {

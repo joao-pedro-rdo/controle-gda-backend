@@ -76,13 +76,6 @@ export function unprocessable(
   return new AppError(422, "UNPROCESSABLE_ENTITY", message, options);
 }
 
-export function payloadTooLarge(
-  message = "Arquivo excede o limite permitido",
-  options?: AppErrorOptions
-): AppError {
-  return new AppError(413, "PAYLOAD_TOO_LARGE", message, options);
-}
-
 export function internal(
   message = "Erro interno do servidor",
   options?: AppErrorOptions
@@ -97,4 +90,12 @@ export function fromZodError(error: ZodError): AppError {
   }));
 
   return new AppError(400, "VALIDATION_ERROR", "Dados inválidos", { details });
+}
+
+export function hasPrismaCode(error: unknown, code: string): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: unknown }).code === code
+  );
 }
