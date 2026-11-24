@@ -50,6 +50,8 @@ export interface EntryRepository {
   ): Promise<Entry[]>;
   findScheduled(range?: ScheduledRange): Promise<Entry[]>;
   findOpenEntry(criteria: OpenEntryCriteria): Promise<Entry | null>;
+  // Entrada de visitante mais recente com um dos documentos informados.
+  findLatestVisitorByDocument(documents: string[]): Promise<Entry | null>;
   create(data: EntryCreateData): Promise<Entry>;
   update(id: number, data: EntryUpdateData): Promise<Entry>;
 }
@@ -106,6 +108,13 @@ export const prismaEntryRepository: EntryRepository = {
           ? {}
           : { isPermissionario: criteria.isPermissionario }),
       },
+      orderBy: { time: "desc" },
+    });
+  },
+
+  findLatestVisitorByDocument(documents) {
+    return prisma.entry.findFirst({
+      where: { isVisitor: true, type: "Entrada", idNumber: { in: documents } },
       orderBy: { time: "desc" },
     });
   },

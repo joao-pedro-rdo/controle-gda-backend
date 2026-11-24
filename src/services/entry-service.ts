@@ -72,6 +72,18 @@ export interface EntryService {
     opts: { role: string; image?: EntryImageInput | null }
   ): Promise<Entry>;
   markExited(id: number, exited: boolean): Promise<Entry>;
+  findVisitorByCpf(cpf: string): Promise<VisitorLookup | null>;
+}
+
+// Dados para autopreencher o registro de um visitante que já veio antes.
+// A foto não é reaproveitada: a Guarda tira uma nova a cada visita.
+export interface VisitorLookup {
+  name: string;
+  phoneNumber: string;
+  licensePlate: string;
+  carModel: string;
+  color: string;
+  lastVisit: Date;
 }
 
 function entryTypeLabel(
@@ -96,6 +108,21 @@ export function createEntryService(
   return {
     index() {
       return repository.findMany();
+    },
+
+    async findVisitorByCpf(cpf) {
+      // Registros antigos guardam o CPF com máscara; os novos, só dígitos.
+      const masked = cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+      const entry = await repository.findLatestVisitorByDocument([cpf, masked]);
+      if (!entry) return null;
+      return {
+        name: entry.name,
+        phoneNumber: entry.phoneNumber ?? "",
+        licensePlate: entry.licensePlate ?? "",
+        carModel: entry.carModel ?? "",
+        color: entry.color ?? "",
+        lastVisit: entry.time,
+      };
     },
 
     async getById(id) {

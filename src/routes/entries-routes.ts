@@ -35,6 +35,13 @@ export default async function routes(fastify: FastifyInstance) {
     EntriesController.confirmScheduledEntry
   );
 
+  // Autopreenchimento do visitante pela última visita com o mesmo CPF
+  fastify.get(
+    "/entries/visitor-lookup/:cpf",
+    { preHandler: verifyGuardaRole },
+    EntriesController.findVisitorByCpf
+  );
+
   // Entradas
   fastify.get(
     "/entries",

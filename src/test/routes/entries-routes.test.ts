@@ -97,6 +97,13 @@ vi.mock("../../repositories/entry-repository.js", () => ({
         (e) => e.isScheduled && e.type === "Entrada"
       );
     },
+    async findLatestVisitorByDocument(documents: string[]) {
+      return (
+        Array.from(routeState.entries.values())
+          .filter((e) => e.isVisitor && e.type === "Entrada" && documents.includes(e.idNumber))
+          .sort((a, b) => b.time.getTime() - a.time.getTime())[0] ?? null
+      );
+    },
     async findOpenEntry(criteria: {
       name: string;
       isVisitor?: boolean;
@@ -425,6 +432,66 @@ describe("entries routes", () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json().error).toMatch(/imagem válida/);
+  });
+
+  describe("visitor lookup by CPF", () => {
+    it("returns the most recent visit, matching masked legacy CPFs", async () => {
+      routeState.entries.set(
+        10,
+        row({ id: 10, isVisitor: true, name: "Antigo", idNumber: "529.982.247-25", phoneNumber: "(61) 1111-1111", time: new Date("2026-01-01T10:00:00Z") })
+      );
+      routeState.entries.set(
+        11,
+        row({ id: 11, isVisitor: true, name: "Recente", idNumber: "52998224725", phoneNumber: "(61) 99999-0000", licensePlate: "ABC1D23", carModel: "Gol", color: "Prata", imagePath: "/uploads/visitors/x.jpg", time: new Date("2026-06-01T10:00:00Z") })
+      );
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/entries/visitor-lookup/529.982.247-25",
+        cookies: { accessToken: guardaToken },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const { visitor } = response.json();
+      expect(visitor).toMatchObject({
+        name: "Recente",
+        phoneNumber: "(61) 99999-0000",
+        licensePlate: "ABC1D23",
+        carModel: "Gol",
+        color: "Prata",
+      });
+      expect(visitor).not.toHaveProperty("imagePath");
+    });
+
+    it("returns null when the CPF never visited", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/entries/visitor-lookup/52998224725",
+        cookies: { accessToken: guardaToken },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ visitor: null });
+    });
+
+    it("rejects an invalid CPF (400)", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/entries/visitor-lookup/12345678900",
+        cookies: { accessToken: guardaToken },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it("requires authentication (401)", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/entries/visitor-lookup/52998224725",
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
   });
 
   it("rejects entry creation without authentication", async () => {

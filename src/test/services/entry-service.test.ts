@@ -24,6 +24,13 @@ const repository: EntryRepository = {
   async findScheduled() {
     return Array.from(entries.values()).filter((e) => e.isScheduled);
   },
+  async findLatestVisitorByDocument(documents) {
+    return (
+      Array.from(entries.values())
+        .filter((e) => e.isVisitor && e.type === "Entrada" && documents.includes(e.idNumber))
+        .sort((a, b) => b.time.getTime() - a.time.getTime())[0] ?? null
+    );
+  },
   async findOpenEntry(criteria) {
     return (
       Array.from(entries.values())

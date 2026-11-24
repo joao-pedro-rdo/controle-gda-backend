@@ -9,6 +9,7 @@ import {
   entryIdParamsSchema,
   scheduledDateQuerySchema,
   updateEntrySchema,
+  visitorCpfParamsSchema,
 } from "../schemas/entries-schema.js";
 import { entryService } from "../services/entry-service.js";
 import { sendSuccess } from "../lib/http.js";
@@ -17,6 +18,11 @@ import { parseBody, parseParams, parseQuery } from "../lib/validation.js";
 
 export async function index(req: FastifyRequest, reply: FastifyReply) {
   return sendSuccess(reply, await entryService.index());
+}
+
+export async function findVisitorByCpf(req: FastifyRequest, reply: FastifyReply) {
+  const { cpf } = parseParams(visitorCpfParamsSchema, req.params);
+  return sendSuccess(reply, { visitor: await entryService.findVisitorByCpf(cpf) });
 }
 
 export async function getEntryById(req: FastifyRequest, reply: FastifyReply) {

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { digitsOnly, isValidCpf } from "../lib/cpf.js";
-import { phoneText, requiredShortText, shortText } from "../lib/text-rules.js";
+import { cpfDigits, phoneText, requiredShortText, shortText } from "../lib/text-rules.js";
 import { isValidPlate } from "./vehicles-schema.js";
 
 function normalizePlate(value: string): string {
@@ -195,6 +195,8 @@ export const scheduledDateQuerySchema = z.object({
       "Data inválida"
     ),
 });
+
+export const visitorCpfParamsSchema = z.object({ cpf: cpfDigits });
 
 export const entryIdParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
