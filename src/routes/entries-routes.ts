@@ -1,12 +1,11 @@
 import type { FastifyInstance } from "fastify";
 
 import * as EntriesController from "../controllers/entries-controller.ts";
-import * as MigrationController from "../controllers/entries-migration-controller.js";
 import {
   verifyToken,
   verifyGuardaRole,
   verifyS2Role,
-} from "../middleware/auth.js";
+} from "../middleware/auth.ts";
 
 export default async function routes(fastify: FastifyInstance) {
   // IMPORTANTE: Rotas mais específicas devem vir ANTES das genéricas.
@@ -74,17 +73,5 @@ export default async function routes(fastify: FastifyInstance) {
     "/exits",
     { preHandler: verifyGuardaRole },
     EntriesController.createExit
-  );
-
-  // Rotas de migração de imagens (mantidas no controller legado)
-  fastify.post(
-    "/migrate-permissionario-images",
-    { preHandler: verifyS2Role },
-    MigrationController.migratePermissionarioImages
-  );
-  fastify.post(
-    "/migrate-permissionario-image/:id",
-    { preHandler: verifyS2Role },
-    MigrationController.migratePermissionarioImageById
   );
 }

@@ -37,6 +37,18 @@ function createApp(): FastifyInstance {
     throw error;
   });
 
+  for (const [path, prismaCode, field] of [
+    ["/prisma-fk", "P2003", "code"],
+    ["/prisma-too-long", "P2000", "code"],
+    ["/prisma-down", "P1001", "errorCode"],
+  ] as const) {
+    app.get(path, async () => {
+      const error = new Error("prisma") as Error & Record<string, string>;
+      error[field] = prismaCode;
+      throw error;
+    });
+  }
+
   app.get("/internal-app-error", async () => {
     throw internal("falha interna no banco");
   });
@@ -104,6 +116,17 @@ describe("setupErrorHandler", () => {
 
     expect(response.statusCode).toBe(404);
     expect(response.json().code).toBe("NOT_FOUND");
+  });
+
+  it.each([
+    ["/prisma-fk", 409, "CONFLICT"],
+    ["/prisma-too-long", 400, "VALIDATION_ERROR"],
+    ["/prisma-down", 503, "DATABASE_UNAVAILABLE"],
+  ])("maps Prisma error %s to %i %s", async (url, status, code) => {
+    const response = await app.inject({ method: "GET", url });
+
+    expect(response.statusCode).toBe(status);
+    expect(response.json().code).toBe(code);
   });
 
   it("hides the message of server AppErrors in production", async () => {

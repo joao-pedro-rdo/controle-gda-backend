@@ -1,11 +1,11 @@
-import fastify from "fastify";
+import fastify, { type FastifyBaseLogger } from "fastify";
 import helmet from "@fastify/helmet";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import fastifyCookie from "@fastify/cookie";
 
-import prometheusMiddleware from "./middleware/prometheus-metrics.js";
-import metricsRoutes from "./routes/metrics-routes.js";
+import prometheusMiddleware from "./middleware/prometheus-metrics.ts";
+import metricsRoutes from "./routes/metrics-routes.ts";
 import {
   updateVehiclesGauge,
   updatePermissionariosGauge,
@@ -20,7 +20,7 @@ import { parseIpAllowlist, parseTrustProxy } from "./lib/guard-station.js";
 import vehiclesRoute from "./routes/vehicles-routes.js";
 import entriesRoute from "./routes/entries-routes.js";
 import authRoutes from "./routes/auth-routes.js";
-import surveillanceRoutes from "./routes/surveillance-routes.js";
+import surveillanceRoutes from "./routes/surveillance-routes.ts";
 import permissionarioRoutes from "./routes/permissionario-routes.js";
 import imagesRoutes from "./routes/images-routes.js";
 import pessoasNaoAutorizadasRoutes from "./routes/pessoas-nao-autorizadas-routes.js";
@@ -31,6 +31,13 @@ export async function buildApp() {
   parseIpAllowlist(process.env.GUARDA_TRUSTED_IPS);
 
   const app = fastify({
+    // Logs em JSON (pino) no stdout do container. LOG_LEVEL=debug mostra
+    // também cada requisição e os erros 4xx.
+    logger:
+      process.env.NODE_ENV === "test"
+        ? false
+        : { level: process.env.LOG_LEVEL || "info" },
+    disableRequestLogging: true,
     // Só usa X-Forwarded-For de proxies confiáveis (ver lib/guard-station.ts).
     trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
   });
@@ -56,6 +63,18 @@ export async function buildApp() {
   // Metrics must be registered before routes so every request is observed.
   app.addHook("onRequest", prometheusMiddleware);
 
+  app.addHook("onResponse", async (request, reply) => {
+    request.log.debug(
+      {
+        method: request.method,
+        url: request.routeOptions?.url ?? request.url,
+        statusCode: reply.statusCode,
+        ms: Math.round(reply.elapsedTime),
+      },
+      "request"
+    );
+  });
+
   // Configuração do cookie para autenticação
   await app.register(fastifyCookie, {
     secret: process.env.COOKIE_SECRET || "controle-gda-cookie-secret-2025",
@@ -80,17 +99,12 @@ export async function buildApp() {
   return app;
 }
 
-export async function startMetricsUpdater() {
-  console.log("🔄 Iniciando atualizador de métricas...");
-
-  await updateGauges();
-
-  setInterval(async () => {
-    await updateGauges();
-  }, 60000);
+export async function startMetricsUpdater(log: FastifyBaseLogger) {
+  await updateGauges(log);
+  setInterval(() => void updateGauges(log), 60000);
 }
 
-async function updateGauges() {
+async function updateGauges(log: FastifyBaseLogger) {
   try {
     const vehiclesCount = await prisma.vehicles.count();
     updateVehiclesGauge(vehiclesCount);
@@ -143,7 +157,6 @@ async function updateGauges() {
       .catch(() => 0);
     updatePeopleInsideOM("militar", militaresInside);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("❌ Erro ao atualizar métricas:", message);
+    log.warn({ err: error }, "Falha ao atualizar métricas de negócio");
   }
 }

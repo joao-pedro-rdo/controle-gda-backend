@@ -248,7 +248,7 @@ export const csvImportsTotal = new client.Counter({
  * @param {boolean} scheduled - Se é agendamento
  * @param {string} status - "success" | "error"
  */
-export function incrementEntryCounter(type, scheduled = false, status = 'success') {
+export function incrementEntryCounter(type: string, scheduled = false, status = 'success'): void {
   entriesTotal.inc({
     type,
     status,
@@ -260,7 +260,7 @@ export function incrementEntryCounter(type, scheduled = false, status = 'success
  * Incrementa contador de saídas
  * @param {string} type - "visitor" | "permissionario" | "militar"
  */
-export function incrementExitCounter(type) {
+export function incrementExitCounter(type: string): void {
   exitsTotal.inc({ type });
 }
 
@@ -268,7 +268,7 @@ export function incrementExitCounter(type) {
  * Incrementa contador de agendamentos
  * @param {string} status - "created" | "confirmed" | "cancelled"
  */
-export function incrementScheduledEntry(status) {
+export function incrementScheduledEntry(status: string): void {
   scheduledEntriesTotal.inc({ status });
 }
 
@@ -277,7 +277,7 @@ export function incrementScheduledEntry(status) {
  * @param {string} type - "visitor" | "permissionario" | "militar"
  * @param {number} hours - Tempo em horas
  */
-export function recordStayDuration(type, hours) {
+export function recordStayDuration(type: string, hours: number): void {
   stayDurationHours.observe({ type }, hours);
 }
 
@@ -286,7 +286,7 @@ export function recordStayDuration(type, hours) {
  * @param {string} status - "success" | "failed"
  * @param {string} role - "S2" | "Guarda" | "Scmt" | null
  */
-export function incrementLoginAttempts(status, role = null) {
+export function incrementLoginAttempts(status: string, role: string | null = null): void {
   loginAttemptsTotal.inc({
     status,
     role: role || 'unknown',
@@ -299,7 +299,7 @@ export function incrementLoginAttempts(status, role = null) {
  * @param {string} status - "success" | "error"
  * @param {number} sizeBytes - Tamanho do arquivo em bytes
  */
-export function incrementImageUpload(type, status = 'success', sizeBytes = 0) {
+export function incrementImageUpload(type: string, status = 'success', sizeBytes = 0): void {
   imageUploadsTotal.inc({ type, status });
   if (sizeBytes > 0 && status === 'success') {
     uploadSizeBytes.observe({ type }, sizeBytes);
@@ -311,7 +311,7 @@ export function incrementImageUpload(type, status = 'success', sizeBytes = 0) {
  * @param {string} status - "success" | "error"
  * @param {number} recordsImported - Número de registros importados
  */
-export function incrementCsvImport(status, recordsImported = 0) {
+export function incrementCsvImport(status: string, recordsImported = 0): void {
   csvImportsTotal.inc({
     status,
     records_imported: recordsImported.toString(),
@@ -321,7 +321,7 @@ export function incrementCsvImport(status, recordsImported = 0) {
 /**
  * Incrementa contador de veículos criados
  */
-export function incrementVehicleCreated() {
+export function incrementVehicleCreated(): void {
   vehiclesCreatedTotal.inc();
 }
 
@@ -329,7 +329,7 @@ export function incrementVehicleCreated() {
  * Atualiza gauge de veículos totais
  * @param {number} count
  */
-export function updateVehiclesGauge(count) {
+export function updateVehiclesGauge(count: number): void {
   vehiclesRegisteredTotal.set(count);
 }
 
@@ -337,7 +337,7 @@ export function updateVehiclesGauge(count) {
  * Atualiza gauge de permissionários
  * @param {number} count
  */
-export function updatePermissionariosGauge(count) {
+export function updatePermissionariosGauge(count: number): void {
   permissionariosTotal.set(count);
 }
 
@@ -345,7 +345,7 @@ export function updatePermissionariosGauge(count) {
  * Atualiza gauge de pessoas não autorizadas
  * @param {number} count
  */
-export function updateUnauthorizedPersonsGauge(count) {
+export function updateUnauthorizedPersonsGauge(count: number): void {
   unauthorizedPersonsTotal.set(count);
 }
 
@@ -354,7 +354,7 @@ export function updateUnauthorizedPersonsGauge(count) {
  * @param {string} role
  * @param {number} count
  */
-export function updateUsersGauge(role, count) {
+export function updateUsersGauge(role: string, count: number): void {
   usersTotal.set({ role }, count);
 }
 
@@ -363,7 +363,7 @@ export function updateUsersGauge(role, count) {
  * @param {string} type - "visitor" | "permissionario" | "militar"
  * @param {number} count
  */
-export function updatePeopleInsideOM(type, count) {
+export function updatePeopleInsideOM(type: string, count: number): void {
   peopleInsideOM.set({ type }, count);
 }
 
@@ -371,7 +371,7 @@ export function updatePeopleInsideOM(type, count) {
  * Incrementa consultas a pessoas não autorizadas
  * @param {boolean} found
  */
-export function incrementUnauthorizedPersonCheck(found) {
+export function incrementUnauthorizedPersonCheck(found: boolean): void {
   unauthorizedPersonChecksTotal.inc({ found: found.toString() });
 }
 

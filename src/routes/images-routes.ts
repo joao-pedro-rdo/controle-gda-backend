@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 
 import * as ImagesController from "../controllers/images-controller.ts";
 import * as PessoasNaoAutorizadasController from "../controllers/pessoa-nao-autorizada-controller.ts";
-import { verifyGuardaRole, verifyToken } from "../middleware/auth.js";
+import { verifyGuardaRole, verifyToken } from "../middleware/auth.ts";
 
 export default async function routes(fastify: FastifyInstance) {
   // Imagens de visitantes - qualquer perfil autenticado

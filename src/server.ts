@@ -6,13 +6,10 @@ const host = process.env.HOST || "0.0.0.0";
 const app = await buildApp();
 
 try {
-  const address = await app.listen({ port, host });
-  console.log(`🚀 Server running on ${address}`);
-  console.log(`📊 Prometheus metrics available at ${address}/metrics`);
-  console.log(`❤️  Health check available at ${address}/health`);
-
-  await startMetricsUpdater();
+  // O Fastify já registra "Server listening at ..." com o logger.
+  await app.listen({ port, host });
+  await startMetricsUpdater(app.log);
 } catch (error) {
-  console.error(error);
+  app.log.fatal({ err: error }, "Falha ao iniciar o servidor");
   process.exit(1);
 }

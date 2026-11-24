@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 
 import * as PermissionarioController from "../controllers/permissionario-controller.ts";
-import { verifyToken, verifyS2Role } from "../middleware/auth.js";
+import { verifyToken, verifyS2Role } from "../middleware/auth.ts";
 
 export default async function routes(fastify: FastifyInstance) {
   // Consulta básica com autenticação (lista)

@@ -10,8 +10,12 @@ import { AppError, fromZodError, type ErrorDetails } from "./errors.js";
 
 function getPrismaErrorCode(error: unknown): string | null {
   if (typeof error === "object" && error !== null) {
-    const code = (error as { code?: unknown }).code;
-    if (typeof code === "string" && /^P\d{4}$/.test(code)) return code;
+    // PrismaClientKnownRequestError usa `code`; erros de conexão
+    // (PrismaClientInitializationError) usam `errorCode`.
+    const { code, errorCode } = error as { code?: unknown; errorCode?: unknown };
+    for (const candidate of [code, errorCode]) {
+      if (typeof candidate === "string" && /^P\d{4}$/.test(candidate)) return candidate;
+    }
   }
   return null;
 }
@@ -62,8 +66,6 @@ export function setupErrorHandler(app: FastifyInstance): void {
       request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      request.log.error({ err: error }, "Request failed");
-
       const isProduction = process.env.NODE_ENV === "production";
 
       let statusCode = 500;
@@ -100,6 +102,19 @@ export function setupErrorHandler(app: FastifyInstance): void {
           statusCode = 404;
           code = "NOT_FOUND";
           message = "Registro não encontrado";
+        } else if (prismaCode === "P2003") {
+          statusCode = 409;
+          code = "CONFLICT";
+          message = "Registro vinculado a outros dados";
+        } else if (prismaCode === "P2000") {
+          statusCode = 400;
+          code = "VALIDATION_ERROR";
+          message = "Valor maior que o permitido para o campo";
+        } else if (prismaCode && /^P10(0[0-2]|17)$/.test(prismaCode)) {
+          // Banco fora do ar, inacessível ou conexão encerrada.
+          statusCode = 503;
+          code = "DATABASE_UNAVAILABLE";
+          message = "Banco de dados indisponível. Tente novamente em instantes.";
         } else if (
           typeof error.statusCode === "number" &&
           error.statusCode >= 400 &&
@@ -112,6 +127,14 @@ export function setupErrorHandler(app: FastifyInstance): void {
               ? "Erro interno do servidor"
               : error.message;
         }
+      }
+
+      // 5xx é falha do servidor; 4xx é uso normal (sessão expirada, dado
+      // inválido) e só aparece com LOG_LEVEL=debug.
+      if (statusCode >= 500) {
+        request.log.error({ err: error, statusCode }, "Request failed");
+      } else {
+        request.log.debug({ err: error, statusCode }, "Request rejected");
       }
 
       reply.status(statusCode).send({

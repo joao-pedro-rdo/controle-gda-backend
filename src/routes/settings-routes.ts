@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 
 import * as SettingsController from "../controllers/settings-controller.ts";
-import { verifyS2Role } from "../middleware/auth.js";
+import { verifyS2Role } from "../middleware/auth.ts";
 
 export default async function routes(fastify: FastifyInstance) {
   // Destinos - apenas S2

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 
 import * as AuthController from "../controllers/auth-controller.ts";
-import { verifyS2Role, verifyToken } from "../middleware/auth.js";
+import { verifyS2Role, verifyToken } from "../middleware/auth.ts";
 
 export default async function routes(fastify: FastifyInstance) {
   fastify.get("/users", { preHandler: verifyS2Role }, AuthController.listUsers);

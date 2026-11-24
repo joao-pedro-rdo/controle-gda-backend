@@ -11,7 +11,8 @@
     "prisma:generate": "npx prisma generate",
     "prisma:migrate": "npx prisma migrate deploy",
     "prisma:studio": "npx prisma studio",
-    "normalize:documents": "tsx src/scripts/normalize-documents.ts"
+    "normalize:documents": "tsx src/scripts/normalize-documents.ts",
+    "encrypt:permissionario-images": "tsx src/scripts/encrypt-permissionario-images.ts"
   },
   "dependencies": {
     "@faker-js/faker": "^10.1.0",
