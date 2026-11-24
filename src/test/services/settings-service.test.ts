@@ -4,40 +4,17 @@ import {
   createSettingsService,
   type SettingsService,
 } from "../../services/settings-service.js";
-import type {
-  Destination,
-  SystemSettings,
-} from "@prisma/client";
+import type { Destination } from "@prisma/client";
 
-type SettingsRow = { settingKey: string; settingValue: string | null };
 type DestinationRow = { id: number; name: string; isDefault: boolean };
 
 function fakeSettingsRepository() {
-  const settings = new Map<string, string | null>();
   let nextId = 1;
   const destinations: DestinationRow[] = [];
 
   return {
-    state: { settings, destinations },
+    state: { destinations },
     repository: {
-      async getByKeys(keys: string[]) {
-        return Array.from(settings.entries())
-          .filter(([key]) => keys.includes(key))
-          .map(
-            ([settingKey, settingValue]) =>
-              ({ settingKey, settingValue } as SystemSettings)
-          );
-      },
-      async getAll() {
-        return Array.from(settings.entries()).map(
-          ([settingKey, settingValue]) =>
-            ({ settingKey, settingValue } as SystemSettings)
-        );
-      },
-      async set(key: string, value: string | null) {
-        settings.set(key, value);
-        return { settingKey: key, settingValue: value } as SystemSettings;
-      },
       async listDestinations() {
         return destinations.map((d) => d) as Destination[];
       },
@@ -66,95 +43,6 @@ function fakeSettingsRepository() {
 }
 
 describe("settings-service", () => {
-  it("returns default colors when nothing is stored", async () => {
-    const { repository } = fakeSettingsRepository();
-    const service: SettingsService = createSettingsService({ repository });
-
-    await expect(service.getColors()).resolves.toEqual({
-      primaryColor: "#dc2626",
-      secondaryColor: "#991b1b",
-    });
-  });
-
-  it("returns stored colors overriding defaults", async () => {
-    const fake = fakeSettingsRepository();
-    await fake.repository.set("primary_color", "#000000");
-    const service = createSettingsService({ repository: fake.repository });
-
-    await expect(service.getColors()).resolves.toEqual({
-      primaryColor: "#000000",
-      secondaryColor: "#991b1b",
-    });
-  });
-
-  it("persists updated colors", async () => {
-    const fake = fakeSettingsRepository();
-    const service = createSettingsService({ repository: fake.repository });
-
-    await service.updateColors({ primaryColor: "#111111", secondaryColor: "#222222" });
-
-    expect(fake.state.settings.get("primary_color")).toBe("#111111");
-    expect(fake.state.settings.get("secondary_color")).toBe("#222222");
-  });
-
-  it("updates only the provided colors", async () => {
-    const fake = fakeSettingsRepository();
-    const service = createSettingsService({ repository: fake.repository });
-
-    await service.updateColors({ secondaryColor: "#333333" });
-
-    expect(fake.state.settings.has("primary_color")).toBe(false);
-    expect(fake.state.settings.get("secondary_color")).toBe("#333333");
-  });
-
-  it("returns default system settings when nothing is stored", async () => {
-    const { repository } = fakeSettingsRepository();
-    const service = createSettingsService({ repository });
-
-    await expect(service.getSystemSettings()).resolves.toEqual({
-      pageTitle: "Guarda - 6° RCB",
-      logo: "/img/logo.png",
-      background: "/img/bg-cover.jpg",
-    });
-  });
-
-  it("returns stored system settings overriding defaults", async () => {
-    const fake = fakeSettingsRepository();
-    await fake.repository.set("page_title", "Portaria");
-    const service = createSettingsService({ repository: fake.repository });
-
-    await expect(service.getSystemSettings()).resolves.toEqual({
-      pageTitle: "Portaria",
-      logo: "/img/logo.png",
-      background: "/img/bg-cover.jpg",
-    });
-  });
-
-  it("persists updated system settings", async () => {
-    const fake = fakeSettingsRepository();
-    const service = createSettingsService({ repository: fake.repository });
-
-    await service.updateSystemSettings({ pageTitle: "OM 42", logo: "/system-images/logo.png" });
-
-    expect(fake.state.settings.get("page_title")).toBe("OM 42");
-    expect(fake.state.settings.get("logo_path")).toBe("/system-images/logo.png");
-    expect(fake.state.settings.has("background_path")).toBe(false);
-  });
-
-  it("resets system settings to defaults", async () => {
-    const fake = fakeSettingsRepository();
-    await fake.repository.set("page_title", "Custom");
-    const service = createSettingsService({ repository: fake.repository });
-
-    const result = await service.resetSystemSettings();
-
-    expect(result).toEqual({
-      pageTitle: "Guarda - 6° RCB",
-      logo: "/img/logo.png",
-      background: "/img/bg-cover.jpg",
-    });
-  });
-
   it("lists destinations", async () => {
     const fake = fakeSettingsRepository();
     await fake.repository.createDestination("S2");

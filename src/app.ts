@@ -1,8 +1,5 @@
 import fastify from "fastify";
 import helmet from "@fastify/helmet";
-import path from "path";
-import { fileURLToPath } from "url";
-import fastifyStatic from "@fastify/static";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import fastifyCookie from "@fastify/cookie";
@@ -28,9 +25,6 @@ import imagesRoutes from "./routes/images-routes.js";
 import pessoasNaoAutorizadasRoutes from "./routes/pessoas-nao-autorizadas-routes.js";
 import settingsRoutes from "./routes/settings-routes.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 export async function buildApp() {
   const app = fastify();
 
@@ -54,18 +48,6 @@ export async function buildApp() {
 
   // Metrics must be registered before routes so every request is observed.
   app.addHook("onRequest", prometheusMiddleware);
-
-  //Servir arquivos estaticos
-  app.register(fastifyStatic, {
-    root: path.join(__dirname, "../public"),
-    prefix: "/public/",
-    decorateReply: false,
-    setHeaders: (res) => {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-      res.setHeader("Cache-Control", "public, max-age=86400");
-    },
-  });
 
   // Configuração do cookie para autenticação
   await app.register(fastifyCookie, {

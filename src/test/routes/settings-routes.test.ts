@@ -2,7 +2,6 @@ import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const routeState = vi.hoisted(() => ({
-  settings: new Map<string, string | null>(),
   destinations: [] as { id: number; name: string; isDefault: boolean }[],
   nextId: 1,
 }));
@@ -10,15 +9,6 @@ const routeState = vi.hoisted(() => ({
 vi.mock("../../repositories/settings-repository.js", () => {
   return {
     prismaSettingsRepository: {
-      async getByKeys(keys: string[]) {
-        return Array.from(routeState.settings.entries())
-          .filter(([key]) => keys.includes(key))
-          .map(([settingKey, settingValue]) => ({ settingKey, settingValue }));
-      },
-      async set(key: string, value: string | null) {
-        routeState.settings.set(key, value);
-        return { settingKey: key, settingValue: value };
-      },
       async listDestinations() {
         return routeState.destinations.map((d) => ({ ...d }));
       },
@@ -78,7 +68,6 @@ describe("settings routes", () => {
   });
 
   beforeEach(() => {
-    routeState.settings.clear();
     routeState.destinations.length = 0;
     routeState.nextId = 1;
     routeState.destinations.push(
@@ -89,124 +78,6 @@ describe("settings routes", () => {
 
   afterAll(async () => {
     await app.close();
-  });
-
-  describe("colors", () => {
-    it("returns default colors publicly", async () => {
-      const response = await app.inject({ method: "GET", url: "/settings/colors" });
-
-      expect(response.statusCode).toBe(200);
-      expect(response.json()).toEqual({
-        primaryColor: "#dc2626",
-        secondaryColor: "#991b1b",
-      });
-    });
-
-    it("returns stored colors when set", async () => {
-      routeState.settings.set("primary_color", "#000000");
-
-      const response = await app.inject({ method: "GET", url: "/settings/colors" });
-
-      expect(response.statusCode).toBe(200);
-      expect(response.json()).toMatchObject({ primaryColor: "#000000" });
-    });
-
-    it("updates colors with S2", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: "/settings/colors",
-        cookies: { accessToken: s2Token },
-        payload: { primaryColor: "#111111" },
-      });
-
-      expect(response.statusCode).toBe(200);
-      expect(routeState.settings.get("primary_color")).toBe("#111111");
-    });
-
-    it("rejects updating colors without authentication", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: "/settings/colors",
-        payload: { primaryColor: "#111111" },
-      });
-
-      expect(response.statusCode).toBe(401);
-      expect(response.json().code).toBe("UNAUTHORIZED");
-    });
-
-    it("rejects updating colors for a Guarda", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: "/settings/colors",
-        cookies: { accessToken: guardaToken },
-        payload: { primaryColor: "#111111" },
-      });
-
-      expect(response.statusCode).toBe(403);
-      expect(response.json().code).toBe("FORBIDDEN");
-    });
-
-    it("rejects an invalid hex color (400)", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: "/settings/colors",
-        cookies: { accessToken: s2Token },
-        payload: { primaryColor: "vermelho" },
-      });
-
-      expect(response.statusCode).toBe(400);
-      expect(response.json().code).toBe("VALIDATION_ERROR");
-    });
-  });
-
-  describe("system settings", () => {
-    it("rejects reading system settings without authentication", async () => {
-      const response = await app.inject({ method: "GET", url: "/settings/system" });
-
-      expect(response.statusCode).toBe(401);
-      expect(response.json().code).toBe("UNAUTHORIZED");
-    });
-
-    it("returns default system settings with S2", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/settings/system",
-        cookies: { accessToken: s2Token },
-      });
-
-      expect(response.statusCode).toBe(200);
-      expect(response.json()).toEqual({
-        pageTitle: "Guarda - 6° RCB",
-        logo: "/img/logo.png",
-        background: "/img/bg-cover.jpg",
-      });
-    });
-
-    it("updates system settings with S2", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: "/settings/system",
-        cookies: { accessToken: s2Token },
-        payload: { pageTitle: "Portaria 42" },
-      });
-
-      expect(response.statusCode).toBe(200);
-      expect(routeState.settings.get("page_title")).toBe("Portaria 42");
-    });
-
-    it("resets system settings with S2", async () => {
-      routeState.settings.set("page_title", "Custom");
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/settings/system/reset",
-        cookies: { accessToken: s2Token },
-      });
-
-      expect(response.statusCode).toBe(200);
-      expect(response.json()).toMatchObject({ pageTitle: "Guarda - 6° RCB" });
-      expect(routeState.settings.get("page_title")).toBe("Guarda - 6° RCB");
-    });
   });
 
   describe("destinations", () => {
@@ -290,6 +161,23 @@ describe("settings routes", () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.json().destinations).toEqual(["S2", "PCM"]);
+    });
+  });
+
+  describe("legacy color and system settings endpoints", () => {
+    it.each([
+      ["GET", "/settings/colors"],
+      ["POST", "/settings/colors"],
+      ["GET", "/settings/system"],
+      ["POST", "/settings/system/reset"],
+    ])("%s %s no longer exists (404)", async (method, url) => {
+      const response = await app.inject({
+        method: method as "GET",
+        url,
+        cookies: { accessToken: s2Token },
+      });
+
+      expect(response.statusCode).toBe(404);
     });
   });
 });
