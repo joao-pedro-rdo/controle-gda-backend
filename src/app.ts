@@ -15,6 +15,7 @@ import {
 } from "./helpers/prometheus.js";
 import { prisma } from "./lib/prisma.js";
 import { setupErrorHandler } from "./lib/error-handler.js";
+import { parseIpAllowlist, parseTrustProxy } from "./lib/guard-station.js";
 
 import vehiclesRoute from "./routes/vehicles-routes.js";
 import entriesRoute from "./routes/entries-routes.js";
@@ -26,7 +27,13 @@ import pessoasNaoAutorizadasRoutes from "./routes/pessoas-nao-autorizadas-routes
 import settingsRoutes from "./routes/settings-routes.js";
 
 export async function buildApp() {
-  const app = fastify();
+  // Valida GUARDA_TRUSTED_IPS na subida para falhar cedo em caso de erro.
+  parseIpAllowlist(process.env.GUARDA_TRUSTED_IPS);
+
+  const app = fastify({
+    // Só usa X-Forwarded-For de proxies confiáveis (ver lib/guard-station.ts).
+    trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
+  });
 
   setupErrorHandler(app);
 

@@ -114,8 +114,14 @@ export function createAuthService(repository: UserRepository = prismaUserReposit
       return repository.update(id, { password });
     },
 
-    checkSession(user: PublicUser): { authenticated: true; user: PublicUser } {
-      return { authenticated: true, user: toPublicUser(user) };
+    checkSession(
+      user: PublicUser & { station?: boolean }
+    ): { authenticated: true; user: PublicUser & { station?: boolean } } {
+      const publicUser = toPublicUser(user);
+      return {
+        authenticated: true,
+        user: user.station ? { ...publicUser, station: true } : publicUser,
+      };
     },
 
     logout(reply: FastifyReply): { message: string } {

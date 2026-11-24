@@ -6,6 +6,7 @@ declare module "fastify" {
       id: number;
       login: string;
       role: string;
+      station?: boolean;
     };
   }
 }

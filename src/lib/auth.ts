@@ -1,13 +1,16 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import jwt from "jsonwebtoken";
 
-import { forbidden, internal, unauthorized } from "./errors.js";
+import { AppError, forbidden, internal, unauthorized } from "./errors.js";
+import { guardStationUserFor } from "./guard-station.js";
 import { prismaUserRepository } from "../repositories/user-repository.js";
 
 export interface AuthUser {
   id: number;
   login: string;
   role: string;
+  // true quando a sessão vem do posto da Guarda liberado por IP.
+  station?: boolean;
 }
 
 export interface AuthTokenPayload {
@@ -74,15 +77,32 @@ export async function findAuthUser(id: number): Promise<AuthUser | null> {
   return prismaUserRepository.findById(id);
 }
 
-export async function requireAuth(request: FastifyRequest): Promise<AuthUser> {
-  const token = extractAccessToken(request);
-  if (!token) throw unauthorized("Token de acesso não fornecido");
-
+async function userFromToken(token: string): Promise<AuthUser> {
   const payload = verifyAccessToken(token);
   const user = await findAuthUser(payload.id);
   if (!user) throw unauthorized("Usuário não encontrado");
-
   return user;
+}
+
+// Sessão válida tem prioridade. Sem sessão (ou com sessão inválida/expirada),
+// máquinas do posto da Guarda liberadas por IP entram como Guarda.
+export async function requireAuth(request: FastifyRequest): Promise<AuthUser> {
+  const token = extractAccessToken(request);
+  const station = guardStationUserFor(request);
+
+  if (!token) {
+    if (station) return station;
+    throw unauthorized("Token de acesso não fornecido");
+  }
+
+  try {
+    return await userFromToken(token);
+  } catch (error) {
+    if (station && error instanceof AppError && error.statusCode === 401) {
+      return station;
+    }
+    throw error;
+  }
 }
 
 export async function authenticate(
