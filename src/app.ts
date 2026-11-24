@@ -22,7 +22,6 @@ import { setupErrorHandler } from "./lib/error-handler.js";
 import vehiclesRoute from "./routes/vehicles-routes.js";
 import entriesRoute from "./routes/entries-routes.js";
 import authRoutes from "./routes/auth-routes.js";
-import driversRoutes from "./routes/drivers-routes.js";
 import surveillanceRoutes from "./routes/surveillance-routes.js";
 import permissionarioRoutes from "./routes/permissionario-routes.js";
 import imagesRoutes from "./routes/images-routes.js";
@@ -83,7 +82,6 @@ export async function buildApp() {
   app.register(vehiclesRoute);
   app.register(entriesRoute);
   app.register(authRoutes);
-  app.register(driversRoutes);
   app.register(surveillanceRoutes);
   app.register(permissionarioRoutes);
   app.register(imagesRoutes);

@@ -2,6 +2,13 @@ import { z } from "zod";
 
 const requiredString = z.string().trim().min(1, "Campo obrigatório");
 
+// Perfis válidos do sistema (ver UBIQUITOUS_LANGUAGE.md). Perfis legados
+// como Ofdia, RP, Sta e Fiscal não são mais aceitos.
+export const USER_ROLES = ["S2", "Guarda", "Scmt", "SFPC"] as const;
+const roleSchema = z.enum(USER_ROLES, {
+  errorMap: () => ({ message: `Perfil inválido. Use: ${USER_ROLES.join(", ")}` }),
+});
+
 export const loginSchema = z.object({
   login: requiredString.max(50, "Login deve ter no máximo 50 caracteres"),
   password: z.string().min(1, "Senha obrigatória"),
@@ -10,7 +17,7 @@ export const loginSchema = z.object({
 export const signupSchema = z.object({
   login: requiredString.max(50, "Login deve ter no máximo 50 caracteres"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  role: requiredString.max(30, "Perfil deve ter no máximo 30 caracteres"),
+  role: roleSchema,
 });
 
 export const updateUserSchema = z
@@ -20,7 +27,7 @@ export const updateUserSchema = z
       .string()
       .min(6, "Senha deve ter pelo menos 6 caracteres")
       .optional(),
-    role: requiredString.max(30, "Perfil deve ter no máximo 30 caracteres").optional(),
+    role: roleSchema.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "Informe ao menos um campo para atualizar",

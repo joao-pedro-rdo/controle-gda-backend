@@ -32,6 +32,24 @@ describe("auth schemas", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts only current roles on signup", () => {
+    for (const role of ["S2", "Guarda", "Scmt", "SFPC"]) {
+      expect(
+        signupSchema.safeParse({ login: "user", password: "teste123", role }).success
+      ).toBe(true);
+    }
+
+    for (const role of ["Ofdia", "RP", "Sta", "Fiscal", ""]) {
+      expect(
+        signupSchema.safeParse({ login: "user", password: "teste123", role }).success
+      ).toBe(false);
+    }
+  });
+
+  it("rejects legacy roles on user update", () => {
+    expect(updateUserSchema.safeParse({ role: "Ofdia" }).success).toBe(false);
+  });
+
   it("requires at least one field for user updates", () => {
     const result = updateUserSchema.safeParse({});
 
