@@ -10,7 +10,8 @@
     "test:watch": "vitest",
     "prisma:generate": "npx prisma generate",
     "prisma:migrate": "npx prisma migrate deploy",
-    "prisma:studio": "npx prisma studio"
+    "prisma:studio": "npx prisma studio",
+    "normalize:documents": "tsx src/scripts/normalize-documents.ts"
   },
   "dependencies": {
     "@faker-js/faker": "^10.1.0",

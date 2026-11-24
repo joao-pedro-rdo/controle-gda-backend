@@ -159,6 +159,9 @@ vi.mock("../../repositories/user-repository.js", () => ({
 import { signAccessToken } from "../../lib/auth.js";
 import { createTestApp } from "../helpers/create-test-app.js";
 
+// Assinatura mínima de JPEG: o backend confere o conteúdo real da imagem.
+const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+
 const s2Token = signAccessToken({ id: 1, login: "s2", role: "S2" });
 const guardaToken = signAccessToken({ id: 2, login: "guarda", role: "Guarda" });
 const staToken = signAccessToken({ id: 3, login: "sta", role: "Sta" });
@@ -287,8 +290,8 @@ describe("entries routes", () => {
       url: "/entries",
       cookies: { accessToken: guardaToken },
       ...buildMultipart(
-        { name: "Visitante Novo", type: "Entrada", isVisitor: "true" },
-        { fieldname: "image", filename: "photo.jpg", contentType: "image/jpeg", data: Buffer.from("fake-image") }
+        { name: "Visitante Novo", type: "Entrada", isVisitor: "true", idNumber: "529.982.247-25", onFoot: "true" },
+        { fieldname: "image", filename: "photo.jpg", contentType: "image/jpeg", data: JPEG_BYTES }
       ),
     });
 
@@ -297,6 +300,131 @@ describe("entries routes", () => {
       name: "Visitante Novo",
       imagePath: "/uploads/visitors/stubbed.jpg",
     });
+  });
+
+  const visitorImage = {
+    fieldname: "image",
+    filename: "photo.jpg",
+    contentType: "image/jpeg",
+    data: JPEG_BYTES,
+  };
+
+  it("stores the visitor CPF as digits and normalizes the plate", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/entries",
+      cookies: { accessToken: guardaToken },
+      ...buildMultipart(
+        {
+          name: "Visitante Com Carro",
+          type: "Entrada",
+          isVisitor: "true",
+          idNumber: "529.982.247-25",
+          licensePlate: "abc-1d23",
+          carModel: "Gol",
+          color: "Prata",
+        },
+        visitorImage
+      ),
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().entry).toMatchObject({
+      idNumber: "52998224725",
+      licensePlate: "ABC1D23",
+      carModel: "Gol",
+      color: "Prata",
+    });
+  });
+
+  it("clears vehicle fields for a visitor on foot", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/entries",
+      cookies: { accessToken: guardaToken },
+      ...buildMultipart(
+        {
+          name: "Visitante A Pe",
+          type: "Entrada",
+          isVisitor: "true",
+          idNumber: "529.982.247-25",
+          onFoot: "true",
+          licensePlate: "ABC1D23",
+          carModel: "Gol",
+          color: "Prata",
+        },
+        visitorImage
+      ),
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().entry).toMatchObject({
+      licensePlate: "",
+      carModel: "",
+      color: "",
+    });
+  });
+
+  it("requires vehicle data for a visitor not on foot (400)", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/entries",
+      cookies: { accessToken: guardaToken },
+      ...buildMultipart(
+        { name: "Sem Carro", type: "Entrada", isVisitor: "true", idNumber: "529.982.247-25" },
+        visitorImage
+      ),
+    });
+
+    expect(response.statusCode).toBe(400);
+    const fields = response.json().details.map((d: { field: string }) => d.field);
+    expect(fields).toEqual(expect.arrayContaining(["licensePlate", "carModel", "color"]));
+  });
+
+  it.each([
+    ["letters in CPF", { idNumber: "529.982.247-2A" }],
+    ["invalid CPF digits", { idNumber: "111.111.111-11" }],
+    ["special characters in name", { name: "Visitante <script>" }],
+  ])("rejects a visitor entry with %s (400)", async (_label, override) => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/entries",
+      cookies: { accessToken: guardaToken },
+      ...buildMultipart(
+        {
+          name: "Visitante",
+          type: "Entrada",
+          isVisitor: "true",
+          idNumber: "529.982.247-25",
+          onFoot: "true",
+          ...override,
+        },
+        visitorImage
+      ),
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it("rejects an upload that is not really an image (400)", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/entries",
+      cookies: { accessToken: guardaToken },
+      ...buildMultipart(
+        {
+          name: "Visitante",
+          type: "Entrada",
+          isVisitor: "true",
+          idNumber: "529.982.247-25",
+          onFoot: "true",
+        },
+        { ...visitorImage, data: Buffer.from("<html>nao sou imagem</html>") }
+      ),
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toMatch(/imagem válida/);
   });
 
   it("rejects entry creation without authentication", async () => {
@@ -316,8 +444,8 @@ describe("entries routes", () => {
       url: "/entries",
       cookies: { accessToken: staToken },
       ...buildMultipart(
-        { name: "Visitante Novo", type: "Entrada", isVisitor: "true" },
-        { fieldname: "image", filename: "photo.jpg", contentType: "image/jpeg", data: Buffer.from("fake-image") }
+        { name: "Visitante Novo", type: "Entrada", isVisitor: "true", idNumber: "529.982.247-25", onFoot: "true" },
+        { fieldname: "image", filename: "photo.jpg", contentType: "image/jpeg", data: JPEG_BYTES }
       ),
     });
 
@@ -332,7 +460,8 @@ describe("entries routes", () => {
       cookies: { accessToken: s2Token },
       payload: {
         name: "Agendado",
-        idNumber: "123456",
+        idNumber: "529.982.247-25",
+        onFoot: true,
         scheduledDate: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
       },
     });
@@ -351,7 +480,8 @@ describe("entries routes", () => {
       cookies: { accessToken: guardaToken },
       payload: {
         name: "Agendado",
-        idNumber: "123456",
+        idNumber: "529.982.247-25",
+        onFoot: true,
         scheduledDate: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
       },
     });
@@ -367,7 +497,8 @@ describe("entries routes", () => {
       cookies: { accessToken: s2Token },
       payload: {
         name: "Agendado",
-        idNumber: "123456",
+        idNumber: "529.982.247-25",
+        onFoot: true,
         scheduledDate: new Date(Date.now() - 5000).toISOString(),
       },
     });
@@ -446,7 +577,7 @@ describe("entries routes", () => {
       url: "/entries/scheduled/2/confirm",
       cookies: { accessToken: guardaToken },
       ...buildMultipart({}, {
-        fieldname: "image", filename: "photo.jpg", contentType: "image/jpeg", data: Buffer.from("fake-image"),
+        fieldname: "image", filename: "photo.jpg", contentType: "image/jpeg", data: JPEG_BYTES,
       }),
     });
 
@@ -467,7 +598,7 @@ describe("entries routes", () => {
       url: "/entries/scheduled/2/confirm",
       cookies: { accessToken: s2Token },
       ...buildMultipart({}, {
-        fieldname: "image", filename: "photo.jpg", contentType: "image/jpeg", data: Buffer.from("fake-image"),
+        fieldname: "image", filename: "photo.jpg", contentType: "image/jpeg", data: JPEG_BYTES,
       }),
     });
 

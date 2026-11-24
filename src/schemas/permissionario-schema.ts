@@ -1,46 +1,34 @@
 import { z } from "zod";
 
-import { digitsOnly, isValidCpf } from "../lib/cpf.js";
+import { digitsOnly } from "../lib/cpf.js";
+import { cpfDigits, personName, requiredShortText, shortText } from "../lib/text-rules.js";
+import { isValidPlate } from "./vehicles-schema.js";
 
-const requiredString = z.string().trim().min(1, "Campo obrigatório");
-
-function requiredField(field: string, max: number) {
-  return requiredString.max(max, `${field} deve ter no máximo ${max} caracteres`);
-}
-
-function nullableField(max: number) {
-  return z
-    .string()
-    .trim()
-    .max(max, `Campo deve ter no máximo ${max} caracteres`)
+function nullableField(field: string, max: number) {
+  return shortText(field, max)
     .optional()
     .transform((value) =>
       value === undefined || value === "" ? null : value
     );
 }
 
-const cpfField = z
-  .string()
-  .trim()
-  .min(1, "CPF obrigatório")
-  .refine(isValidCpf, "CPF inválido")
-  .transform((value) => digitsOnly(value));
+const cpfField = cpfDigits;
 
-const optionalPlate = z
+const plateText = z
   .string()
   .trim()
   .max(10, "Placa deve ter no máximo 10 caracteres")
+  .refine((value) => value === "" || isValidPlate(value), "Placa inválida");
+
+const optionalPlate = plateText
   .optional()
   .transform((value) => {
     if (value === undefined || value === "") return null;
     return value.replace(/[\s.-]/g, "").toUpperCase();
   });
 
-function nullableUpdateField(max: number) {
-  return z
-    .string()
-    .trim()
-    .max(max, `Campo deve ter no máximo ${max} caracteres`)
+function nullableUpdateField(field: string, max: number) {
+  return shortText(field, max)
     .optional()
     .transform((value) => {
       if (value === undefined) return undefined;
@@ -48,10 +36,7 @@ function nullableUpdateField(max: number) {
     });
 }
 
-const optionalPlateUpdate = z
-  .string()
-  .trim()
-  .max(10, "Placa deve ter no máximo 10 caracteres")
+const optionalPlateUpdate = plateText
   .optional()
   .transform((value) => {
     if (value === undefined) return undefined;
@@ -60,24 +45,24 @@ const optionalPlateUpdate = z
   });
 
 export const createPermissionarioSchema = z.object({
-  completeName: requiredField("Nome completo", 150),
-  idNumber: requiredField("Identidade", 30),
+  completeName: personName("Nome completo", 150),
+  idNumber: requiredShortText("Identidade", 30),
   CPF: cpfField,
-  local: nullableField(100),
-  carModel: nullableField(50),
+  local: nullableField("Local", 100),
+  carModel: nullableField("Modelo", 50),
   licensePlate: optionalPlate,
-  color: nullableField(20),
+  color: nullableField("Cor", 20),
 });
 
 export const updatePermissionarioSchema = z
   .object({
-    completeName: requiredField("Nome completo", 150).optional(),
-    idNumber: requiredField("Identidade", 30).optional(),
+    completeName: personName("Nome completo", 150).optional(),
+    idNumber: requiredShortText("Identidade", 30).optional(),
     CPF: cpfField.optional(),
-    local: nullableUpdateField(100),
-    carModel: nullableUpdateField(50),
+    local: nullableUpdateField("Local", 100),
+    carModel: nullableUpdateField("Modelo", 50),
     licensePlate: optionalPlateUpdate,
-    color: nullableUpdateField(20),
+    color: nullableUpdateField("Cor", 20),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "Informe ao menos um campo para atualizar",

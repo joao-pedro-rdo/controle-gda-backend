@@ -225,7 +225,7 @@ describe("vehicles routes", () => {
       completeName: "João da Silva",
       licensePlate: "ABC1D23",
     });
-    expect(response.json().idNumber).toBe("529.982.247-25");
+    expect(response.json().idNumber).toBe("52998224725");
   });
 
   it("rejects create with a duplicated plate (409)", async () => {
@@ -310,5 +310,73 @@ describe("vehicles routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ id: 1 });
+  });
+
+  describe("CSV import", () => {
+    function csvUpload(content: string, filename = "veiculos.csv") {
+      const boundary = "----csvboundary";
+      const body = [
+        `--${boundary}`,
+        `Content-Disposition: form-data; name="file"; filename="${filename}"`,
+        "Content-Type: text/csv",
+        "",
+        content,
+        `--${boundary}--`,
+        "",
+      ].join("\r\n");
+      return {
+        method: "POST" as const,
+        url: "/vehicles/import-csv",
+        cookies: { accessToken: s2Token },
+        headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+        payload: body,
+      };
+    }
+
+    it("imports valid rows and reports invalid and duplicated ones", async () => {
+      const csv = [
+        "﻿NOME;POSTO;MODELO;PLACA;COR;CPF;CNH",
+        "Ana Lima;Sgt Lima;Gol;abc-1d23;Prata;529.982.247-25;01234567890",
+        "Bruno Costa;Cb Costa;Onix;DEF5678;Preto;;",
+        "Carlos <x>;Sd Carlos;Uno;GHI9J01;Branco;;",
+        "Dora Reis;Sd Reis;Palio;JKL2345;Azul;123;",
+        "Eva Melo;Sd Melo;Ka;ABC1D23;Verde;;",
+        "Fabio Dias;Sd Dias;Kwid;XYZ2B34;Cinza;;",
+      ].join("\n");
+
+      routeState.nextId = 2; // o veículo semente usa o id 1
+      const response = await app.inject(csvUpload(csv));
+
+      expect(response.statusCode).toBe(200);
+      const { results } = response.json();
+      expect(results).toMatchObject({ total: 6, sucessos: 2, falhas: 2, duplicados: 2 });
+      expect(results.erros.map((e: { linha: number }) => e.linha)).toEqual([4, 5, 6, 7]);
+      expect(results.erros[1].erro).toMatch(/CPF deve ter 11 dígitos/);
+
+      const stored = Array.from(routeState.vehicles.values());
+      expect(stored).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            licensePlate: "ABC1D23",
+            idNumber: "52998224725",
+            driverLicense: "01234567890",
+          }),
+          expect.objectContaining({ licensePlate: "DEF5678", idNumber: "" }),
+        ])
+      );
+    });
+
+    it("rejects a non-CSV file (400)", async () => {
+      const response = await app.inject(csvUpload("NOME\nAna", "veiculos.txt"));
+      expect(response.statusCode).toBe(400);
+    });
+
+    it("requires S2 (403)", async () => {
+      const response = await app.inject({
+        ...csvUpload("NOME\nAna"),
+        cookies: { accessToken: guardaToken },
+      });
+      expect(response.statusCode).toBe(403);
+    });
   });
 });

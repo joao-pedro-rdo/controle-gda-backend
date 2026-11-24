@@ -1,5 +1,58 @@
 import { z } from "zod";
 
+import { digitsOnly, isValidCpf } from "../lib/cpf.js";
+import { phoneText, requiredShortText, shortText } from "../lib/text-rules.js";
+import { isValidPlate } from "./vehicles-schema.js";
+
+function normalizePlate(value: string): string {
+  return value.replace(/[\s.-]/g, "").toUpperCase();
+}
+
+type VisitorFields = {
+  idNumber?: string;
+  licensePlate?: string;
+  carModel?: string;
+  color?: string;
+};
+
+// Regras do visitante: CPF válido e, salvo se veio a pé, veículo completo.
+function checkVisitorFields(
+  data: VisitorFields,
+  onFoot: boolean,
+  ctx: z.RefinementCtx
+) {
+  const cpf = data.idNumber ?? "";
+  if (!isValidCpf(cpf) || !/^[\d.\-\s]+$/.test(cpf)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CPF inválido", path: ["idNumber"] });
+  }
+  if (onFoot) return;
+  if (!data.licensePlate || !isValidPlate(data.licensePlate)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: data.licensePlate ? "Placa inválida" : "Placa obrigatória (ou marque \"A pé\")",
+      path: ["licensePlate"],
+    });
+  }
+  if (!data.carModel) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Modelo obrigatório", path: ["carModel"] });
+  }
+  if (!data.color) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Cor obrigatória", path: ["color"] });
+  }
+}
+
+// Visitante a pé grava os campos do veículo vazios; com veículo, placa
+// normalizada. CPF do visitante é gravado só com dígitos.
+function normalizeVisitorFields<T extends VisitorFields>(data: T, onFoot: boolean): T {
+  return {
+    ...data,
+    idNumber: digitsOnly(data.idNumber ?? ""),
+    licensePlate: onFoot ? "" : normalizePlate(data.licensePlate ?? ""),
+    carModel: onFoot ? "" : data.carModel,
+    color: onFoot ? "" : data.color,
+  };
+}
+
 const stringBool = z
   .union([z.literal("true"), z.literal("false")])
   .optional();
@@ -17,15 +70,30 @@ export const createEntrySchema = z
     isPermissionario: stringBool,
     isScheduled: stringBool,
     isMilitar: stringBool,
-    name: z.string().trim().min(1, "Nome obrigatório").max(250),
-    idNumber: z.string().trim().max(30).optional().default(""),
+    // Visitante sem veículo.
+    onFoot: stringBool,
+    name: requiredShortText("Nome", 250),
+    idNumber: shortText("Documento", 30).optional().default(""),
     CPF: z.string().trim().optional(),
-    licensePlate: z.string().trim().max(10).optional(),
-    carModel: z.string().trim().max(50).optional(),
-    color: z.string().trim().max(20).optional().default(""),
-    phoneNumber: z.string().trim().max(30).optional().default(""),
-    contactPerson: z.string().trim().max(100).optional().default(""),
-    target: z.string().trim().max(200).optional().default(""),
+    licensePlate: shortText("Placa", 10).optional(),
+    carModel: shortText("Modelo", 50).optional(),
+    color: shortText("Cor", 20).optional().default(""),
+    phoneNumber: phoneText("Telefone", 30).optional().default(""),
+    contactPerson: shortText("Contato", 100).optional().default(""),
+    target: shortText("Destino", 200).optional().default(""),
+  })
+  .superRefine((data, ctx) => {
+    const isVisitorEntry =
+      parseStringBool(data.isVisitor) && (data.type ?? "Entrada") === "Entrada";
+    if (isVisitorEntry) {
+      checkVisitorFields(data, parseStringBool(data.onFoot), ctx);
+    }
+  })
+  .transform((data) => {
+    const isVisitorEntry = parseStringBool(data.isVisitor) && data.type === "Entrada";
+    return isVisitorEntry
+      ? normalizeVisitorFields(data, parseStringBool(data.onFoot))
+      : data;
   })
   .transform((data) => ({
     type: data.type,
@@ -72,21 +140,25 @@ export const createExitSchema = z.object({
   imagePath: z.string().nullable().optional(),
 });
 
-export const createScheduledEntrySchema = z.object({
-  name: z.string().trim().min(1, "Nome obrigatório").max(250),
-  idNumber: z.string().trim().min(1, "Identidade obrigatória").max(30),
-  phoneNumber: z.string().trim().max(30).optional().default(""),
-  licensePlate: z.string().trim().max(10).optional().default(""),
-  carModel: z.string().trim().max(50).optional().default(""),
-  color: z.string().trim().max(20).optional().default(""),
-  contactPerson: z.string().trim().max(100).optional().default(""),
-  target: z.string().trim().max(200).optional().default(""),
-  scheduledDate: z
-    .string()
-    .min(1, "Data de agendamento obrigatória")
-    .refine((value) => !isNaN(Date.parse(value)), "Data de agendamento inválida")
-    .transform((value) => new Date(value)),
-});
+export const createScheduledEntrySchema = z
+  .object({
+    name: requiredShortText("Nome", 250),
+    idNumber: z.string().trim().min(1, "CPF obrigatório").max(30),
+    phoneNumber: phoneText("Telefone", 30).optional().default(""),
+    onFoot: mayBool.optional().default(false),
+    licensePlate: shortText("Placa", 10).optional().default(""),
+    carModel: shortText("Modelo", 50).optional().default(""),
+    color: shortText("Cor", 20).optional().default(""),
+    contactPerson: shortText("Contato", 100).optional().default(""),
+    target: shortText("Destino", 200).optional().default(""),
+    scheduledDate: z
+      .string()
+      .min(1, "Data de agendamento obrigatória")
+      .refine((value) => !isNaN(Date.parse(value)), "Data de agendamento inválida")
+      .transform((value) => new Date(value)),
+  })
+  .superRefine((data, ctx) => checkVisitorFields(data, data.onFoot, ctx))
+  .transform(({ onFoot, ...data }) => normalizeVisitorFields(data, onFoot));
 
 const includeScheduledBool = z
   .union([z.boolean(), z.literal("true"), z.literal("false")])

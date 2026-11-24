@@ -93,6 +93,9 @@ vi.mock("../../repositories/user-repository.js", () => {
 import { signAccessToken } from "../../lib/auth.js";
 import { createTestApp } from "../helpers/create-test-app.js";
 
+// Assinatura mínima de JPEG: o backend confere o conteúdo real da imagem.
+const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+
 const s2Token = signAccessToken({ id: 1, login: "s2", role: "S2" });
 const guardaToken = signAccessToken({ id: 2, login: "guarda", role: "Guarda" });
 
@@ -227,7 +230,7 @@ describe("pessoas-nao-autorizadas routes", () => {
       cookies: { accessToken: s2Token },
       ...buildMultipart(
         validBody,
-        { fieldname: "image", filename: "photo.jpg", contentType: "image/jpeg", data: Buffer.from("fake-image") }
+        { fieldname: "image", filename: "photo.jpg", contentType: "image/jpeg", data: JPEG_BYTES }
       ),
     });
 
@@ -319,7 +322,7 @@ describe("pessoas-nao-autorizadas routes", () => {
       cookies: { accessToken: s2Token },
       ...buildMultipart(
         { observacao: "Atualizada" },
-        { fieldname: "image", filename: "new.jpg", contentType: "image/jpeg", data: Buffer.from("new") }
+        { fieldname: "image", filename: "new.jpg", contentType: "image/jpeg", data: JPEG_BYTES }
       ),
     });
 

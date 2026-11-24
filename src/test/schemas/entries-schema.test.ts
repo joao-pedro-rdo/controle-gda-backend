@@ -15,7 +15,8 @@ describe("entries schemas", () => {
       isVisitor: "true",
       isPermissionario: "false",
       name: "Maria Souza",
-      idNumber: "123456",
+      idNumber: "529.982.247-25",
+      onFoot: "true",
     };
 
     it("parses multipart string fields into typed booleans", () => {
@@ -82,7 +83,8 @@ describe("entries schemas", () => {
     it("accepts a valid future date string", () => {
       const result = createScheduledEntrySchema.safeParse({
         name: "João",
-        idNumber: "123",
+        idNumber: "529.982.247-25",
+        onFoot: true,
         scheduledDate: "2027-01-01T10:00:00.000Z",
       });
       expect(result.success).toBe(true);

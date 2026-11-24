@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 
 import * as VehiclesController from "../controllers/vehicles-controller.ts";
-import * as VehiclesCsvController from "../controllers/vehicles-csv-controller.js";
+import * as VehiclesCsvController from "../controllers/vehicles-csv-controller.ts";
 import { verifyS2Role } from "../middleware/auth.js";
 
 export default async function routes(fastify: FastifyInstance) {

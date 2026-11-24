@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_FILE_SIZE,
   contentTypeForExtension,
+  detectImageMimeType,
   isSafeFilename,
   normalizeSystemImageName,
   validateImageUpload,
@@ -106,5 +107,23 @@ describe("isSafeFilename", () => {
     expect(isSafeFilename("..%2Flogo.png")).toBe(false);
     expect(isSafeFilename("a/../b.png")).toBe(false);
     expect(isSafeFilename("..\\logo.png")).toBe(false);
+  });
+});
+describe("detectImageMimeType", () => {
+  it.each([
+    ["jpeg", Buffer.from([0xff, 0xd8, 0xff, 0xe0]), "image/jpeg"],
+    ["png", Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), "image/png"],
+    ["gif", Buffer.from("GIF89a", "latin1"), "image/gif"],
+    ["webp", Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4), Buffer.from("WEBP")]), "image/webp"],
+  ])("detects %s by signature", (_label, buffer, expected) => {
+    expect(detectImageMimeType(buffer)).toBe(expected);
+  });
+
+  it.each([
+    ["html", Buffer.from("<html></html>")],
+    ["pdf", Buffer.from("%PDF-1.7")],
+    ["empty", Buffer.alloc(0)],
+  ])("returns null for %s", (_label, buffer) => {
+    expect(detectImageMimeType(buffer)).toBeNull();
   });
 });

@@ -98,6 +98,9 @@ vi.mock("../../repositories/user-repository.js", () => {
 import { signAccessToken } from "../../lib/auth.js";
 import { createTestApp } from "../helpers/create-test-app.js";
 
+// Assinatura mínima de JPEG: o backend confere o conteúdo real da imagem.
+const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+
 const s2Token = signAccessToken({ id: 1, login: "s2", role: "S2" });
 const guardaToken = signAccessToken({ id: 2, login: "guarda", role: "Guarda" });
 
@@ -266,7 +269,7 @@ describe("permissionario routes", () => {
       cookies: { accessToken: s2Token },
       ...buildMultipart(
         validBody,
-        { fieldname: "image", filename: "photo.jpg", contentType: "image/jpeg", data: Buffer.from("fake-image") }
+        { fieldname: "image", filename: "photo.jpg", contentType: "image/jpeg", data: JPEG_BYTES }
       ),
     });
 
@@ -277,6 +280,21 @@ describe("permissionario routes", () => {
       licensePlate: "ABC1D23",
       imagePath: "/uploads/permissionarios/stubbed.jpg.encrypted",
     });
+  });
+
+  it.each([
+    ["non-image content", { filename: "photo.jpg", contentType: "image/jpeg", data: Buffer.from("MZ executable") }],
+    ["disallowed extension", { filename: "photo.exe", contentType: "image/jpeg", data: JPEG_BYTES }],
+    ["disallowed mimetype", { filename: "photo.jpg", contentType: "application/pdf", data: JPEG_BYTES }],
+  ])("rejects an upload with %s (400)", async (_label, file) => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/permissionarios",
+      cookies: { accessToken: s2Token },
+      ...buildMultipart(validBody, { fieldname: "image", ...file }),
+    });
+
+    expect(response.statusCode).toBe(400);
   });
 
   it("normalizes a masked CPF and plate on create", async () => {
@@ -360,7 +378,7 @@ describe("permissionario routes", () => {
       cookies: { accessToken: s2Token },
       ...buildMultipart(
         { color: "Azul" },
-        { fieldname: "image", filename: "new.jpg", contentType: "image/jpeg", data: Buffer.from("new") }
+        { fieldname: "image", filename: "new.jpg", contentType: "image/jpeg", data: JPEG_BYTES }
       ),
     });
 

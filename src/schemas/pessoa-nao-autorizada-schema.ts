@@ -1,32 +1,19 @@
 import { z } from "zod";
 
-import { digitsOnly, isValidCpf } from "../lib/cpf.js";
+import { cpfDigits, longText, personName, shortText } from "../lib/text-rules.js";
 
-const requiredString = z.string().trim().min(1, "Campo obrigatório");
+const cpfField = cpfDigits;
 
-const cpfField = z
-  .string()
-  .trim()
-  .min(1, "CPF obrigatório")
-  .refine(isValidCpf, "CPF inválido")
-  .transform((value) => digitsOnly(value));
-
-function optionalNullableField(max: number) {
-  return z
-    .string()
-    .trim()
-    .max(max, `Campo deve ter no máximo ${max} caracteres`)
+function optionalNullableField(text: z.ZodTypeAny) {
+  return text
     .optional()
     .transform((value) =>
       value === undefined || value === "" ? null : value
     );
 }
 
-function nullableUpdateField(max: number) {
-  return z
-    .string()
-    .trim()
-    .max(max, `Campo deve ter no máximo ${max} caracteres`)
+function nullableUpdateField(text: z.ZodTypeAny) {
+  return text
     .optional()
     .transform((value) => {
       if (value === undefined) return undefined;
@@ -35,18 +22,18 @@ function nullableUpdateField(max: number) {
 }
 
 export const createPessoaNaoAutorizadaSchema = z.object({
-  nome: requiredString.max(150, "Nome deve ter no máximo 150 caracteres"),
+  nome: personName("Nome", 150),
   CPF: cpfField,
-  identidade: optionalNullableField(30),
-  observacao: optionalNullableField(500),
+  identidade: optionalNullableField(shortText("Identidade", 30)),
+  observacao: optionalNullableField(longText("Observação", 500)),
 });
 
 export const updatePessoaNaoAutorizadaSchema = z
   .object({
-    nome: requiredString.max(150, "Nome deve ter no máximo 150 caracteres").optional(),
+    nome: personName("Nome", 150).optional(),
     CPF: cpfField.optional(),
-    identidade: nullableUpdateField(30),
-    observacao: nullableUpdateField(500),
+    identidade: nullableUpdateField(shortText("Identidade", 30)),
+    observacao: nullableUpdateField(longText("Observação", 500)),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "Informe ao menos um campo para atualizar",

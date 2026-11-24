@@ -1,29 +1,12 @@
 import { z } from "zod";
 
-import { isValidCpf } from "../lib/cpf.js";
-
-const requiredString = z.string().trim().min(1, "Campo obrigatório");
-
-function requiredField(field: string, max: number) {
-  return requiredString.max(max, `${field} deve ter no máximo ${max} caracteres`);
-}
-
-function optionalField(max: number) {
-  return z
-    .string()
-    .trim()
-    .max(max, `Campo deve ter no máximo ${max} caracteres`)
-    .optional();
-}
-
-function optionalDefaultedField(max: number) {
-  return z
-    .string()
-    .trim()
-    .max(max, `Campo deve ter no máximo ${max} caracteres`)
-    .optional()
-    .default("");
-}
+import {
+  cpfDigits,
+  optionalCnhDigits,
+  personName,
+  requiredShortText,
+  shortText,
+} from "../lib/text-rules.js";
 
 export function isValidPlate(value: string): boolean {
   const normalized = value.replace(/[\s.-]/g, "").toUpperCase();
@@ -41,35 +24,37 @@ export const plateSchema = z
   .refine(isValidPlate, "Placa inválida")
   .transform((value) => value.replace(/[\s.-]/g, "").toUpperCase());
 
-const cpfField = z
-  .string()
-  .trim()
-  .min(1, "CPF obrigatório")
-  .refine(isValidCpf, "CPF inválido");
+// Campos de veículo compartilhados com a importação CSV.
+export const vehicleFields = {
+  completeName: personName("Nome completo", 150),
+  tagName: requiredShortText("P/G - Nome de guerra", 100),
+  carModel: requiredShortText("Modelo", 50),
+  licensePlate: plateSchema,
+  color: requiredShortText("Cor", 20),
+  driverLicense: optionalCnhDigits,
+  idNumber: cpfDigits,
+  company: shortText("Esquadrão", 10),
+  section: shortText("Seção", 50),
+};
 
 export const createVehicleSchema = z.object({
-  completeName: requiredField("Nome completo", 150),
-  tagName: requiredField("P/G - Nome de guerra", 100),
-  carModel: requiredField("Modelo", 50),
-  licensePlate: plateSchema,
-  color: requiredField("Cor", 20),
-  driverLicense: optionalDefaultedField(30),
-  idNumber: cpfField,
-  company: optionalDefaultedField(10),
-  section: optionalDefaultedField(50),
+  ...vehicleFields,
+  driverLicense: vehicleFields.driverLicense.optional().default(""),
+  company: vehicleFields.company.optional().default(""),
+  section: vehicleFields.section.optional().default(""),
 });
 
 export const updateVehicleSchema = z
   .object({
-    completeName: requiredField("Nome completo", 150).optional(),
-    tagName: requiredField("P/G - Nome de guerra", 100).optional(),
-    carModel: requiredField("Modelo", 50).optional(),
-    licensePlate: plateSchema.optional(),
-    color: requiredField("Cor", 20).optional(),
-    driverLicense: optionalField(30),
-    idNumber: cpfField.optional(),
-    company: optionalField(10),
-    section: optionalField(50),
+    completeName: vehicleFields.completeName.optional(),
+    tagName: vehicleFields.tagName.optional(),
+    carModel: vehicleFields.carModel.optional(),
+    licensePlate: vehicleFields.licensePlate.optional(),
+    color: vehicleFields.color.optional(),
+    driverLicense: vehicleFields.driverLicense.optional(),
+    idNumber: vehicleFields.idNumber.optional(),
+    company: vehicleFields.company.optional(),
+    section: vehicleFields.section.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "Informe ao menos um campo para atualizar",

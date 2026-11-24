@@ -24,7 +24,7 @@ describe("vehicles schemas", () => {
     const result = createVehicleSchema.parse({ ...validBody, licensePlate: "abc-1d23" });
 
     expect(result).toMatchObject({ licensePlate: "ABC1D23" });
-    expect(result).toMatchObject({ idNumber: "529.982.247-25" });
+    expect(result).toMatchObject({ idNumber: "52998224725" });
   });
 
   it("defaults optional fields to empty string on create", () => {
