@@ -344,6 +344,30 @@ describe("entries routes", () => {
     });
   });
 
+  it("rejects a second entry for a visitor already inside (409)", async () => {
+    const register = () =>
+      app.inject({
+        method: "POST",
+        url: "/entries",
+        cookies: { accessToken: guardaToken },
+        ...buildMultipart(
+          {
+            name: "Visitante Repetido",
+            type: "Entrada",
+            isVisitor: "true",
+            idNumber: "529.982.247-25",
+            onFoot: "true",
+          },
+          visitorImage
+        ),
+      });
+
+    expect((await register()).statusCode).toBe(201);
+    const second = await register();
+    expect(second.statusCode).toBe(409);
+    expect(second.json().code).toBe("CONFLICT");
+  });
+
   it("clears vehicle fields for a visitor on foot", async () => {
     const response = await app.inject({
       method: "POST",

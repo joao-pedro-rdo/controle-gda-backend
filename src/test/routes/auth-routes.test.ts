@@ -154,4 +154,151 @@ describe("auth routes", () => {
     expect(response.json()).toEqual({ message: "Logout realizado com sucesso" });
     expect(response.cookies.some((cookie) => cookie.name === "accessToken")).toBe(true);
   });
+
+  describe("user management", () => {
+    const s2Cookie = () => ({ accessToken: signAccessToken({ id: 1, login: "s2", role: "S2" }) });
+
+    async function addGuarda() {
+      routeState.users.set(2, {
+        id: 2,
+        login: "guarda",
+        password: await hashPassword("teste123"),
+        role: "Guarda",
+      });
+      routeState.nextId = 3;
+      return { accessToken: signAccessToken({ id: 2, login: "guarda", role: "Guarda" }) };
+    }
+
+    it("lists users without exposing passwords (S2)", async () => {
+      const response = await app.inject({ method: "GET", url: "/users", cookies: s2Cookie() });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual([{ id: 1, login: "s2", role: "S2" }]);
+    });
+
+    it("forbids listing users for Guarda (403)", async () => {
+      const cookies = await addGuarda();
+      const response = await app.inject({ method: "GET", url: "/users", cookies });
+
+      expect(response.statusCode).toBe(403);
+    });
+
+    it("creates a user (201) and rejects a duplicated login (409)", async () => {
+      const payload = { login: "novo", password: "segredo1", role: "SFPC" };
+
+      const created = await app.inject({ method: "POST", url: "/signup", cookies: s2Cookie(), payload });
+      expect(created.statusCode).toBe(201);
+      expect(created.json()).toMatchObject({ login: "novo", role: "SFPC" });
+      expect(created.json()).not.toHaveProperty("password");
+
+      const duplicated = await app.inject({ method: "POST", url: "/signup", cookies: s2Cookie(), payload });
+      expect(duplicated.statusCode).toBe(409);
+    });
+
+    it("rejects signup with a legacy role (400)", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: "/signup",
+        cookies: s2Cookie(),
+        payload: { login: "x", password: "segredo1", role: "Ofdia" },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it("requires authentication to sign up (401)", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: "/signup",
+        payload: { login: "x", password: "segredo1", role: "Guarda" },
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+
+    it("updates a user role (200) and returns 404 for unknown ids", async () => {
+      await addGuarda();
+
+      const updated = await app.inject({
+        method: "PATCH",
+        url: "/updateUser/2",
+        cookies: s2Cookie(),
+        payload: { role: "Scmt" },
+      });
+      expect(updated.statusCode).toBe(200);
+      expect(updated.json()).toMatchObject({ id: 2, role: "Scmt" });
+
+      const missing = await app.inject({
+        method: "PATCH",
+        url: "/updateUser/99",
+        cookies: s2Cookie(),
+        payload: { role: "Scmt" },
+      });
+      expect(missing.statusCode).toBe(404);
+    });
+
+    it("deletes a user (200) and returns 404 for unknown ids", async () => {
+      await addGuarda();
+
+      const deleted = await app.inject({ method: "DELETE", url: "/deleteUser/2", cookies: s2Cookie() });
+      expect(deleted.statusCode).toBe(200);
+      expect(routeState.users.has(2)).toBe(false);
+
+      const missing = await app.inject({ method: "DELETE", url: "/deleteUser/2", cookies: s2Cookie() });
+      expect(missing.statusCode).toBe(404);
+    });
+  });
+
+  describe("password change", () => {
+    it("changes the own password (200) and allows login with it", async () => {
+      const cookies = { accessToken: signAccessToken({ id: 1, login: "s2", role: "S2" }) };
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/updPass/1",
+        cookies,
+        payload: { login: "s2", oldPass: "teste123", newPass: "novaSenha1" },
+      });
+      expect(response.statusCode).toBe(200);
+
+      const login = await app.inject({
+        method: "POST",
+        url: "/login",
+        payload: { login: "s2", password: "novaSenha1" },
+      });
+      expect(login.statusCode).toBe(200);
+    });
+
+    it("rejects a wrong old password (400)", async () => {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/updPass/1",
+        cookies: { accessToken: signAccessToken({ id: 1, login: "s2", role: "S2" }) },
+        payload: { login: "s2", oldPass: "errada", newPass: "novaSenha1" },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it("forbids changing another user's password (403)", async () => {
+      routeState.users.set(2, { id: 2, login: "guarda", password: "x", role: "Guarda" });
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/updPass/1",
+        cookies: { accessToken: signAccessToken({ id: 2, login: "guarda", role: "Guarda" }) },
+        payload: { login: "s2", oldPass: "teste123", newPass: "novaSenha1" },
+      });
+
+      expect(response.statusCode).toBe(403);
+    });
+
+    it("requires authentication (401)", async () => {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/updPass/1",
+        payload: { login: "s2", oldPass: "teste123", newPass: "novaSenha1" },
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+  });
 });

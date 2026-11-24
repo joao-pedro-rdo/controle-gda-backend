@@ -104,6 +104,31 @@ describe("settings routes", () => {
       expect(response.json().destinations).toEqual(["S2", "PCM", "CIA MANUT"]);
     });
 
+    it("requires authentication to change destinations (401)", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: "/settings/destinations",
+        payload: { name: "NOVA" },
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+
+    it.each([
+      ["POST", "/settings/destinations"],
+      ["DELETE", "/settings/destinations/PCM"],
+      ["POST", "/settings/destinations/reset"],
+    ] as const)("forbids %s %s for Guarda (403)", async (method, url) => {
+      const response = await app.inject({
+        method,
+        url,
+        cookies: { accessToken: guardaToken },
+        ...(method === "POST" ? { payload: { name: "NOVA" } } : {}),
+      });
+
+      expect(response.statusCode).toBe(403);
+    });
+
     it("rejects an empty destination name (400)", async () => {
       const response = await app.inject({
         method: "POST",
