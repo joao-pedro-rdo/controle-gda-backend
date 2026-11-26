@@ -38,6 +38,12 @@ const findPermissionarioByCpfDefault: FindPermissionario = (cpf) =>
     where: { CPF: cpf },
   });
 
+export interface ScheduledQuery {
+  date?: Date;
+  from?: Date;
+  to?: Date;
+}
+
 export interface EntryImageInput {
   buffer: Buffer;
   bytesRead: number;
@@ -56,7 +62,7 @@ export interface EntryService {
   index(): Promise<Entry[]>;
   getById(id: number): Promise<Entry>;
   getEntriesByDate(input: DateRangeQuery): Promise<Entry[]>;
-  getScheduledEntries(date?: Date): Promise<Entry[]>;
+  getScheduledEntries(range?: ScheduledQuery): Promise<Entry[]>;
   getScheduledEntriesByDateRange(input: DateRangeQuery): Promise<Entry[]>;
   createEntry(
     input: CreateEntryParsed,
@@ -67,6 +73,8 @@ export interface EntryService {
     originalEntryUpdated: boolean;
   }>;
   createScheduledEntry(input: CreateScheduledEntryInput): Promise<Entry>;
+  updateScheduledEntry(id: number, input: CreateScheduledEntryInput): Promise<Entry>;
+  cancelScheduledEntry(id: number): Promise<void>;
   confirmScheduledEntry(
     id: number,
     opts: { role: string; image?: EntryImageInput | null }
@@ -105,6 +113,19 @@ export function createEntryService(
   const findPermissionarioByCpf =
     options.findPermissionarioByCpf ?? findPermissionarioByCpfDefault;
 
+  // Agendamento pendente = isScheduled true. Depois de confirmado pela Guarda
+  // vira entrada normal (isScheduled false, scheduledDate mantida).
+  async function findPendingScheduled(id: number): Promise<Entry> {
+    const scheduled = await repository.findById(id);
+    if (!scheduled || (!scheduled.isScheduled && !scheduled.scheduledDate)) {
+      throw notFound("Agendamento não encontrado");
+    }
+    if (!scheduled.isScheduled) {
+      throw conflict("Agendamento já confirmado pela Guarda; não pode mais ser alterado");
+    }
+    return scheduled;
+  }
+
   return {
     index() {
       return repository.findMany();
@@ -139,8 +160,11 @@ export function createEntryService(
       );
     },
 
-    getScheduledEntries(date) {
-      return repository.findScheduled(date ? { date } : {});
+    getScheduledEntries(range = {}) {
+      if (range.from || range.to) {
+        return repository.findScheduled({ initial: range.from, final: range.to });
+      }
+      return repository.findScheduled(range.date ? { date: range.date } : {});
     },
 
     getScheduledEntriesByDateRange(input) {
@@ -311,6 +335,34 @@ export function createEntryService(
 
       incrementScheduledEntry("created");
       return agendamento;
+    },
+
+    // Só agendamentos ainda pendentes podem ser editados ou cancelados; depois
+    // de confirmados viram entrada normal e fazem parte do histórico.
+    async updateScheduledEntry(id, input) {
+      await findPendingScheduled(id);
+      if (input.scheduledDate <= new Date()) {
+        throw badRequest("A data e hora do agendamento deve ser futura");
+      }
+      const updated = await repository.update(id, {
+        scheduledDate: input.scheduledDate,
+        name: input.name,
+        idNumber: input.idNumber,
+        licensePlate: input.licensePlate ?? "",
+        carModel: input.carModel ?? "",
+        color: input.color ?? "",
+        phoneNumber: input.phoneNumber ?? null,
+        target: input.target ?? null,
+        contactPerson: input.contactPerson ?? null,
+      });
+      incrementScheduledEntry("updated");
+      return updated;
+    },
+
+    async cancelScheduledEntry(id) {
+      await findPendingScheduled(id);
+      await repository.remove(id);
+      incrementScheduledEntry("cancelled");
     },
 
     async confirmScheduledEntry(id, opts) {

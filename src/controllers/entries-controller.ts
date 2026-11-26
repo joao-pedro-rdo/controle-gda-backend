@@ -9,6 +9,7 @@ import {
   entryIdParamsSchema,
   scheduledDateQuerySchema,
   updateEntrySchema,
+  updateScheduledEntrySchema,
   visitorCpfParamsSchema,
 } from "../schemas/entries-schema.js";
 import { entryService } from "../services/entry-service.js";
@@ -72,11 +73,28 @@ export async function getScheduledEntries(
   req: FastifyRequest,
   reply: FastifyReply
 ) {
-  const { date } = parseQuery(scheduledDateQuerySchema, req.query);
+  const { date, from, to } = parseQuery(scheduledDateQuerySchema, req.query);
   return sendSuccess(
     reply,
-    await entryService.getScheduledEntries(date ? new Date(date) : undefined)
+    await entryService.getScheduledEntries({
+      date: date ? new Date(date) : undefined,
+      from,
+      to,
+    })
   );
+}
+
+export async function updateScheduledEntry(req: FastifyRequest, reply: FastifyReply) {
+  const { id } = parseParams(entryIdParamsSchema, req.params);
+  const body = parseBody(updateScheduledEntrySchema, req.body);
+  const agendamento = await entryService.updateScheduledEntry(id, body);
+  return sendSuccess(reply, { message: "Agendamento atualizado", agendamento });
+}
+
+export async function cancelScheduledEntry(req: FastifyRequest, reply: FastifyReply) {
+  const { id } = parseParams(entryIdParamsSchema, req.params);
+  await entryService.cancelScheduledEntry(id);
+  return sendSuccess(reply, { message: "Agendamento excluído" });
 }
 
 export async function getScheduledEntriesByDateRange(

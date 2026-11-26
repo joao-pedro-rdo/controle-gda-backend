@@ -129,6 +129,17 @@ describe("settings routes", () => {
       expect(response.statusCode).toBe(403);
     });
 
+    it("lets the Guarda read the destinations used in the visitor form", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/settings/destinations",
+        cookies: { accessToken: guardaToken },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(Array.isArray(response.json().destinations)).toBe(true);
+    });
+
     it("rejects an empty destination name (400)", async () => {
       const response = await app.inject({
         method: "POST",

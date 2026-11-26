@@ -144,6 +144,12 @@ vi.mock("../../repositories/entry-repository.js", () => ({
       routeState.entries.set(id, updated);
       return updated;
     },
+    async remove(id: number) {
+      const entry = routeState.entries.get(id);
+      if (!entry) throw { code: "P2025" };
+      routeState.entries.delete(id);
+      return entry;
+    },
   },
 }));
 
@@ -695,5 +701,148 @@ describe("entries routes", () => {
 
     expect(response.statusCode).toBe(403);
     expect(response.json().code).toBe("FORBIDDEN");
+  });
+  describe("scheduled entry management (S2)", () => {
+    const future = () => new Date(Date.now() + 48 * 3600 * 1000).toISOString();
+    const payload = (overrides: Record<string, unknown> = {}) => ({
+      name: "Agendado Editado",
+      idNumber: "529.982.247-25",
+      onFoot: true,
+      target: "SFPC",
+      scheduledDate: future(),
+      ...overrides,
+    });
+
+    function seedPending(id = 20) {
+      routeState.entries.set(
+        id,
+        row({
+          id,
+          name: "Agendado",
+          isScheduled: true,
+          scheduledDate: new Date(Date.now() + 24 * 3600 * 1000),
+        })
+      );
+    }
+
+    it("updates a pending scheduled entry", async () => {
+      seedPending();
+      const response = await app.inject({
+        method: "PUT",
+        url: "/entries/scheduled/20",
+        cookies: { accessToken: s2Token },
+        payload: payload(),
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(routeState.entries.get(20)).toMatchObject({
+        name: "Agendado Editado",
+        idNumber: "52998224725",
+        licensePlate: "",
+        target: "SFPC",
+        isScheduled: true,
+      });
+    });
+
+    it("rejects moving a scheduled entry to the past (400)", async () => {
+      seedPending();
+      const response = await app.inject({
+        method: "PUT",
+        url: "/entries/scheduled/20",
+        cookies: { accessToken: s2Token },
+        payload: payload({ scheduledDate: new Date(Date.now() - 60000).toISOString() }),
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it("does not edit a schedule already confirmed by the Guarda (409)", async () => {
+      routeState.entries.set(
+        21,
+        row({ id: 21, name: "Ja entrou", isScheduled: false, scheduledDate: new Date() })
+      );
+      const response = await app.inject({
+        method: "PUT",
+        url: "/entries/scheduled/21",
+        cookies: { accessToken: s2Token },
+        payload: payload(),
+      });
+
+      expect(response.statusCode).toBe(409);
+    });
+
+    it("returns 404 for a regular entry or unknown id", async () => {
+      routeState.entries.set(22, row({ id: 22, name: "Entrada comum" }));
+      for (const id of [22, 999]) {
+        const response = await app.inject({
+          method: "DELETE",
+          url: `/entries/scheduled/${id}`,
+          cookies: { accessToken: s2Token },
+        });
+        expect(response.statusCode).toBe(404);
+      }
+      expect(routeState.entries.has(22)).toBe(true);
+    });
+
+    it("deletes a pending scheduled entry", async () => {
+      seedPending();
+      const response = await app.inject({
+        method: "DELETE",
+        url: "/entries/scheduled/20",
+        cookies: { accessToken: s2Token },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(routeState.entries.has(20)).toBe(false);
+    });
+
+    it("forbids editing or deleting for the Guarda", async () => {
+      seedPending();
+      const put = await app.inject({
+        method: "PUT",
+        url: "/entries/scheduled/20",
+        cookies: { accessToken: guardaToken },
+        payload: payload(),
+      });
+      const del = await app.inject({
+        method: "DELETE",
+        url: "/entries/scheduled/20",
+        cookies: { accessToken: guardaToken },
+      });
+
+      expect(put.statusCode).toBe(403);
+      expect(del.statusCode).toBe(403);
+      expect(routeState.entries.get(20)?.name).toBe("Agendado");
+    });
+
+    it("requires S2 for the scheduled date-range report", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: "/entries/scheduled/byDate",
+        cookies: { accessToken: guardaToken },
+        payload: {
+          initialDate: "2026-11-01T00:00:00.000Z",
+          finalDate: "2026-12-01T00:00:00.000Z",
+        },
+      });
+
+      expect(response.statusCode).toBe(403);
+    });
+
+    it("accepts a local-day range on the scheduled list", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/entries/scheduled?from=2026-11-26T03:00:00.000Z&to=2026-11-27T03:00:00.000Z",
+        cookies: { accessToken: guardaToken },
+      });
+      expect(response.statusCode).toBe(200);
+
+      const invalid = await app.inject({
+        method: "GET",
+        url: "/entries/scheduled?from=2026-11-27T03:00:00.000Z&to=2026-11-26T03:00:00.000Z",
+        cookies: { accessToken: guardaToken },
+      });
+      expect(invalid.statusCode).toBe(400);
+    });
   });
 });

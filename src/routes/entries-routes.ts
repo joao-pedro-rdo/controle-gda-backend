@@ -25,7 +25,21 @@ export default async function routes(fastify: FastifyInstance) {
 
   fastify.post(
     "/entries/scheduled/byDate",
+    { preHandler: verifyS2Role },
     EntriesController.getScheduledEntriesByDateRange
+  );
+
+  // Gerenciamento de agendamentos pendentes (S2)
+  fastify.put(
+    "/entries/scheduled/:id",
+    { preHandler: verifyS2Role },
+    EntriesController.updateScheduledEntry
+  );
+
+  fastify.delete(
+    "/entries/scheduled/:id",
+    { preHandler: verifyS2Role },
+    EntriesController.cancelScheduledEntry
   );
 
   fastify.patch(

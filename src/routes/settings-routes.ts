@@ -1,13 +1,14 @@
 import type { FastifyInstance } from "fastify";
 
 import * as SettingsController from "../controllers/settings-controller.ts";
-import { verifyS2Role } from "../middleware/auth.ts";
+import { verifyGuardaRole, verifyS2Role } from "../middleware/auth.ts";
 
 export default async function routes(fastify: FastifyInstance) {
-  // Destinos - apenas S2
+  // Destinos - gerenciados pela S2
   fastify.get(
     "/settings/destinations",
-    { preHandler: verifyS2Role },
+    // Leitura liberada para a Guarda: a lista alimenta o formulário de visitante.
+    { preHandler: verifyGuardaRole },
     SettingsController.getDestinations
   );
   fastify.post(

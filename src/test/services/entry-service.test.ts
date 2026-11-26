@@ -73,6 +73,12 @@ const repository: EntryRepository = {
     entries.set(id, updated);
     return updated;
   },
+  async remove(id) {
+    const entry = entries.get(id);
+    if (!entry) throw { code: "P2025" };
+    entries.delete(id);
+    return entry;
+  },
 };
 
 const imageStorage = {

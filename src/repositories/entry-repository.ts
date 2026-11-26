@@ -26,6 +26,14 @@ export interface EntryUpdateData {
   time?: Date;
   imagePath?: string | null;
   scheduledDate?: Date | null;
+  name?: string;
+  idNumber?: string;
+  licensePlate?: string;
+  carModel?: string;
+  color?: string;
+  phoneNumber?: string | null;
+  target?: string | null;
+  contactPerson?: string | null;
 }
 
 export interface OpenEntryCriteria {
@@ -54,6 +62,7 @@ export interface EntryRepository {
   findLatestVisitorByDocument(documents: string[]): Promise<Entry | null>;
   create(data: EntryCreateData): Promise<Entry>;
   update(id: number, data: EntryUpdateData): Promise<Entry>;
+  remove(id: number): Promise<Entry>;
 }
 
 export const prismaEntryRepository: EntryRepository = {
@@ -85,8 +94,11 @@ export const prismaEntryRepository: EntryRepository = {
       const end = new Date(range.date);
       end.setDate(end.getDate() + 1);
       where.scheduledDate = { gte: range.date, lt: end };
-    } else if (range?.initial && range?.final) {
-      where.scheduledDate = { gte: range.initial, lt: range.final };
+    } else if (range?.initial || range?.final) {
+      where.scheduledDate = {
+        ...(range.initial ? { gte: range.initial } : {}),
+        ...(range.final ? { lt: range.final } : {}),
+      };
     }
 
     return prisma.entry.findMany({
@@ -125,5 +137,9 @@ export const prismaEntryRepository: EntryRepository = {
 
   update(id, data) {
     return prisma.entry.update({ where: { id }, data });
+  },
+
+  remove(id) {
+    return prisma.entry.delete({ where: { id } });
   },
 };

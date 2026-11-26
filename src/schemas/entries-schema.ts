@@ -186,15 +186,34 @@ const dateRange = z
 
 export const dateRangeQuerySchema = dateRange;
 
-export const scheduledDateQuerySchema = z.object({
-  date: z
+const optionalInstant = (label: string) =>
+  z
     .string()
     .optional()
-    .refine(
-      (value) => value === undefined || !isNaN(Date.parse(value)),
-      "Data inválida"
-    ),
-});
+    .refine((value) => value === undefined || !isNaN(Date.parse(value)), `${label} inválida`)
+    .transform((value) => (value === undefined ? undefined : new Date(value)));
+
+// `from`/`to` são instantes calculados pelo navegador (início e fim do dia no
+// fuso local). `date` (YYYY-MM-DD, dia em UTC) fica por compatibilidade.
+export const scheduledDateQuerySchema = z
+  .object({
+    date: z
+      .string()
+      .optional()
+      .refine(
+        (value) => value === undefined || !isNaN(Date.parse(value)),
+        "Data inválida"
+      ),
+    from: optionalInstant("Data inicial"),
+    to: optionalInstant("Data final"),
+  })
+  .refine((data) => !(data.from && data.to) || data.to > data.from, {
+    message: "A data final deve ser posterior à inicial",
+    path: ["to"],
+  });
+
+// Edição de agendamento: mesmos campos e regras da criação.
+export const updateScheduledEntrySchema = createScheduledEntrySchema;
 
 export const visitorCpfParamsSchema = z.object({ cpf: cpfDigits });
 
