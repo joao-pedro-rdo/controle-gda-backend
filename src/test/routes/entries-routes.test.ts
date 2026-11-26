@@ -163,6 +163,7 @@ vi.mock("../../repositories/user-repository.js", () => ({
         1: { id: 1, login: "s2", password: "x", role: "S2" },
         2: { id: 2, login: "guarda", password: "x", role: "Guarda" },
         3: { id: 3, login: "sta", password: "x", role: "Sta" },
+        4: { id: 4, login: "sfpc", password: "x", role: "SFPC" },
       };
       return users[id] ?? null;
     },
@@ -178,6 +179,7 @@ const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
 const s2Token = signAccessToken({ id: 1, login: "s2", role: "S2" });
 const guardaToken = signAccessToken({ id: 2, login: "guarda", role: "Guarda" });
 const staToken = signAccessToken({ id: 3, login: "sta", role: "Sta" });
+const sfpcToken = signAccessToken({ id: 4, login: "sfpc", role: "SFPC" });
 
 function buildMultipart(
   fields: Record<string, string>,
@@ -568,6 +570,22 @@ describe("entries routes", () => {
       name: "Agendado",
       isScheduled: true,
     });
+  });
+
+  it("lets SFPC create a scheduled entry (201)", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/entries/schedule",
+      cookies: { accessToken: sfpcToken },
+      payload: {
+        name: "Agendado SFPC",
+        idNumber: "529.982.247-25",
+        onFoot: true,
+        scheduledDate: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
   });
 
   it("forbids creating a scheduled entry for a non-S2 role", async () => {

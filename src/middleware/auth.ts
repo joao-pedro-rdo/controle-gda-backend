@@ -3,4 +3,5 @@ export {
   authenticate as verifyToken,
   requireS2Role as verifyS2Role,
   requireGuardaRole as verifyGuardaRole,
+  requireSchedulingRole as verifySchedulingRole,
 } from "../lib/auth.js";

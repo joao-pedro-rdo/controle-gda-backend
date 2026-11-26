@@ -5,6 +5,7 @@ import {
   verifyToken,
   verifyGuardaRole,
   verifyS2Role,
+  verifySchedulingRole,
 } from "../middleware/auth.ts";
 
 export default async function routes(fastify: FastifyInstance) {
@@ -13,7 +14,7 @@ export default async function routes(fastify: FastifyInstance) {
   // Agendamentos
   fastify.post(
     "/entries/schedule",
-    { preHandler: verifyS2Role },
+    { preHandler: verifySchedulingRole },
     EntriesController.createScheduledEntry
   );
 

@@ -130,6 +130,8 @@ export function requireRoles(...allowedRoles: string[]) {
 
 export const requireS2Role = requireRoles(S2_ROLE);
 export const requireGuardaRole = requireRoles(...GUARDA_ROLES);
+// Criar agendamento de visitante: S2 e SFPC.
+export const requireSchedulingRole = requireRoles(S2_ROLE, "SFPC");
 
 export function setAuthCookie(reply: FastifyReply, token: string): void {
   reply.setCookie(AUTH_COOKIE_NAME, token, {
