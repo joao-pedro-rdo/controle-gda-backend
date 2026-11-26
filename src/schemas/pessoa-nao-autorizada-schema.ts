@@ -24,7 +24,6 @@ function nullableUpdateField(text: z.ZodTypeAny) {
 export const createPessoaNaoAutorizadaSchema = z.object({
   nome: personName("Nome", 150),
   CPF: cpfField,
-  identidade: optionalNullableField(shortText("Identidade", 30)),
   observacao: optionalNullableField(longText("Observação", 500)),
 });
 
@@ -32,7 +31,6 @@ export const updatePessoaNaoAutorizadaSchema = z
   .object({
     nome: personName("Nome", 150).optional(),
     CPF: cpfField.optional(),
-    identidade: nullableUpdateField(shortText("Identidade", 30)),
     observacao: nullableUpdateField(longText("Observação", 500)),
   })
   .refine((data) => Object.keys(data).length > 0, {

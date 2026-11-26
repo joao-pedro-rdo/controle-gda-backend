@@ -32,7 +32,9 @@ model Permissionario {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   completeName  String    @db.VarChar(150)
-  idNumber      String    @db.VarChar(30)
+  // Legado: Identidade não é mais usada (CPF é o identificador). Mantida
+  // só para não apagar dados antigos.
+  idNumber      String?   @db.VarChar(30)
   CPF           String    @db.VarChar(11) @unique
   local         String?   @db.VarChar(100)
   carModel      String?   @db.VarChar(50)

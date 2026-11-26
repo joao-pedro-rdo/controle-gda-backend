@@ -203,7 +203,7 @@ describe("entry service", () => {
           cpf === "11122233344"
             ? {
                 completeName: "Pedro Permitido",
-                idNumber: "99988877766",
+                CPF: "11122233344",
                 licensePlate: "XYZ9A87",
                 carModel: "Onix",
                 color: "Branco",
@@ -234,6 +234,8 @@ describe("entry service", () => {
       expect(entry.licensePlate).toBe("XYZ9A87");
       expect(entry.carModel).toBe("Onix");
       expect(entry.target).toBe("SEÇÃO S2");
+      // Documento da entrada é o CPF, mesmo se o cliente mandar outro valor.
+      expect(entry.idNumber).toBe("11122233344");
     });
 
     it("requires CPF when registering a permissionario", async () => {

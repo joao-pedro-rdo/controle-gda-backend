@@ -4,7 +4,6 @@ import { prisma } from "../lib/prisma.js";
 
 export interface PermissionarioData {
   completeName: string;
-  idNumber: string;
   CPF: string;
   local: string | null;
   carModel: string | null;

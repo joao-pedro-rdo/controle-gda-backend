@@ -5,7 +5,6 @@ import { prisma } from "../lib/prisma.js";
 export interface PessoaNaoAutorizadaData {
   nome: string;
   CPF: string;
-  identidade: string | null;
   observacao: string | null;
   imagePath: string | null;
 }

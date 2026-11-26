@@ -45,7 +45,6 @@ export interface PermissionarioServiceOptions {
 function toPermissionarioData(input: CreatePermissionarioInput): PermissionarioData {
   return {
     completeName: input.completeName,
-    idNumber: input.idNumber,
     CPF: input.CPF,
     local: input.local ?? null,
     carModel: input.carModel ?? null,

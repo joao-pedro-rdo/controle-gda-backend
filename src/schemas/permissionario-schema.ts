@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { digitsOnly } from "../lib/cpf.js";
-import { cpfDigits, personName, requiredShortText, shortText } from "../lib/text-rules.js";
+import { cpfDigits, personName, shortText } from "../lib/text-rules.js";
 import { isValidPlate } from "./vehicles-schema.js";
 
 function nullableField(field: string, max: number) {
@@ -46,7 +46,6 @@ const optionalPlateUpdate = plateText
 
 export const createPermissionarioSchema = z.object({
   completeName: personName("Nome completo", 150),
-  idNumber: requiredShortText("Identidade", 30),
   CPF: cpfField,
   local: nullableField("Local", 100),
   carModel: nullableField("Modelo", 50),
@@ -57,7 +56,6 @@ export const createPermissionarioSchema = z.object({
 export const updatePermissionarioSchema = z
   .object({
     completeName: personName("Nome completo", 150).optional(),
-    idNumber: requiredShortText("Identidade", 30).optional(),
     CPF: cpfField.optional(),
     local: nullableUpdateField("Local", 100),
     carModel: nullableUpdateField("Modelo", 50),

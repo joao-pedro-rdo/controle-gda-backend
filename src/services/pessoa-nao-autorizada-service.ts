@@ -46,7 +46,6 @@ function toPessoaNaoAutorizadaData(
   return {
     nome: input.nome,
     CPF: input.CPF,
-    identidade: input.identidade ?? null,
     observacao: input.observacao ?? null,
     imagePath: null,
   };

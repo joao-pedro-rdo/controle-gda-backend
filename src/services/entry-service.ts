@@ -23,7 +23,7 @@ import type {
 
 interface PermissionarioLike {
   completeName?: string | null;
-  idNumber?: string | null;
+  CPF?: string | null;
   licensePlate?: string | null;
   carModel?: string | null;
   color?: string | null;
@@ -188,7 +188,8 @@ export function createEntryService(
         if (permissionario) {
           if (permissionario.imagePath) imagePath = permissionario.imagePath;
           if (!name) name = permissionario.completeName ?? "";
-          if (!idNumber) idNumber = permissionario.idNumber ?? "";
+          // O documento da entrada é sempre o CPF (não há mais Identidade).
+          idNumber = permissionario.CPF || idNumber;
           if (!licensePlate) licensePlate = permissionario.licensePlate ?? "N/A";
           if (!carModel) carModel = permissionario.carModel ?? "N/A";
           if (!color) color = permissionario.color ?? "N/A";
